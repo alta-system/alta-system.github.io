@@ -50,3 +50,31 @@ def altitude(text,lower=None,upper=None,qline=''):
         if lo is None and re.fullmatch(r'\d{3}',fields[-3]):lo=value('FL'+fields[-3]);basis='Q-line envelope'
         if hi is None and re.fullmatch(r'\d{3}',fields[-2]):hi=value('FL'+fields[-2]);basis='Q-line envelope'
     return {'lower':lo,'upper':hi,'basis':basis,'label':(lo or {}).get('label','未提供')+' — '+(hi or {}).get('label','未提供')}
+
+
+def classify_notam(text, qcode='', classification=''):
+    """Broad candidate selection for NOTAM; maritime remains strictly filtered.
+    A candidate label indicates possible military relevance, not confirmation.
+    """
+    body = re.sub(r'\s+', ' ', str(text)).upper()
+    q = str(qcode or '').upper().strip()
+    q = q if q.startswith('Q') else 'Q' + q
+    if re.fullmatch(r'Q[A-Z]{4}', q) and q[-2:] in ('CN', 'CD', 'CC'):
+        return []
+    if re.search(r'\b(?:FIRING|EXERCISE|MILITARY ACTIVITY)\s+(?:IS\s+)?(?:CANCELLED|CANCELED|COMPLETED)\b', body):
+        return []
+    reasons = classify(body, q)
+    if str(classification).upper() in ('MIL', 'MILITARY', 'LMIL', 'LOCAL_MILITARY'):
+        reasons.append('military-feed-candidate')
+    for label, pattern in [
+        ('military-word-candidate', r'\b(?:MILITARY|MIL|NAVAL|NAVY|ARMY|AIR FORCE|USAF|USN|USMC|DEFEN[CS]E|COMBAT|TACTICAL|EXERCISE|EXER|AIR REFUELL?ING|UAS|UAV|DRONE|JAMMING|SPOOFING)\b|軍事|自衛隊|演習|軍用'),
+        ('restricted-area-candidate', r'\b(?:DANGER AREA|RESTRICTED AREA|PROHIBITED AREA|TEMPORARY RESERVED AIRSPACE|TEMPORARY SEGREGATED AREA)\b')
+    ]:
+        for match in re.finditer(pattern, body):
+            if not re.search(r'\b(?:NO|NOT|WITHOUT)\s+$', body[max(0, match.start()-12):match.start()]):
+                reasons.append(label)
+                break
+    # Warning activity / restricted, danger and prohibited airspace are candidates.
+    if re.fullmatch(r'Q(?:W[MEX]|R[DPR])[A-Z]{2}', q.replace(' ', '')) and not (not reasons and re.search(r'\b(?:RWY|TWY|ILS|VOR|VOLCANIC|WEATHER|THUNDERSTORM)\b', body)):
+        reasons.append('warning-or-restricted-qcode-candidate')
+    return sorted(set(reasons))

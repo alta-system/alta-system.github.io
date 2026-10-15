@@ -6,7 +6,7 @@ requests per fetch; no automatic retry. Never falls back to staging data.
 import argparse, base64, gzip, hashlib, json, re
 from collections import defaultdict
 from notam_text import extract
-from hazard_rules import classify, altitude
+from hazard_rules import classify_notam, altitude
 from datetime import datetime, timezone
 from pathlib import Path
 from faa_client import authenticate, request_json, SafeFailure
@@ -58,7 +58,7 @@ def candidate(feature,refs,now):
     qmatch=re.search(r'(?:^|\n)\s*Q\)\s*([^\r\n]+)',translated)
     qline=qmatch.group(1).strip() if qmatch else ''
     kind,q,reasons=risk({'qcode':n.get('selectionCode'),'text':original+'\n'+translated,'qline':qline},PREFIXES)
-    critical=classify(original+'\n'+translated,q)
+    critical=classify_notam(original+'\n'+translated,q,n.get('classification',''))
     if not critical:return None,'nonrisk'
     kind=kind or 'Danger'
     country,basis=country_for(n,refs)

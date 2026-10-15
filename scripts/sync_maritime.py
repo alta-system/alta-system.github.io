@@ -40,7 +40,7 @@ def build(payload,stamp):
         if warning:props['textGeometryWarning']=warning
         if geometry:features.append(dict(type='Feature',id=ident,geometry=geometry,properties=props))
         else:unplotted.append(dict(props,featureId=ident,unplottedReason=warning or '本文から境界を確定できません'))
-    return dict(type='FeatureCollection',features=features,unplotted=unplotted,metadata=dict(status='ok',parserVersion=VERSION,source=SOURCE,sourceURL=URL,lastAttempt=stamp,lastSuccess=stamp,received=len(rows),retained=len(ids),series=list(AREAS),coverage='NGA現行5系列（NAVAREA IV/XII、HYDROLANT/HYDROPAC/HYDROARC）。全21 NAVAREAの完全収録ではありません。'))
+    return dict(type='FeatureCollection',features=features,unplotted=unplotted,metadata=dict(status='ok',parserVersion=VERSION,source=SOURCE,sourceURL=URL,lastAttempt=stamp,lastSuccess=stamp,received=len(rows),retained=len(features)+len(unplotted),series=list(AREAS),coverage='NGA現行5系列（NAVAREA IV/XII、HYDROLANT/HYDROPAC/HYDROARC）。全21 NAVAREAの完全収録ではありません。'))
 
 def sync(path):
     path=Path(path);stamp=utcnow();old=json.loads(path.read_text()) if path.exists() else None

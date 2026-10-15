@@ -88,3 +88,24 @@ def extract(value):
             return {'geometry':g},None
         except ValueError:return None,'本文の座標列から有効な単純ポリゴンを確定できません。'
     return None,'本文に座標はありますが、境界・半径を一意に確定できません。'
+
+
+def reference_points(value):
+    """Only reported coordinates; no boundary or radius is inferred."""
+    text=re.sub(r'\s+',' ',str(value).upper())
+    # Restrict interpretation to E) when a full ICAO message is supplied.
+    section=re.search(r'(?:^|\s)E\)\s*',text)
+    if section:text=re.split(r'\s+F\)',text[section.end():],maxsplit=1)[0]
+    # Normalize explicit hemisphere-qualified degrees/minutes/seconds only.
+    def packed(m):
+        d,mi,se,h=m.groups();width=2 if h in 'NS' else 3
+        return d.zfill(width)+mi.zfill(2)+(se.zfill(2) if se else '')+h
+    text=re.sub(r"(?<![\d.])(\d{1,3})[°:\- ](\d{2}(?:\.\d+)?)(?:[':\- ](\d{2}(?:\.\d+)?))?[\"' ]*([NSEW])\b",packed,text)
+    text=re.sub(r'\b([NS])\s*(\d{4}(?:\d{2})?(?:\.\d+)?)\s*([EW])\s*(\d{5}(?:\d{2})?(?:\.\d+)?)\b',lambda m:m[2]+m[1]+' '+m[4]+m[3],text)
+    points=[]
+    for m in PAIR.finditer(text):
+        try:
+            p=coord(m)
+            if p not in points:points.append(p)
+        except ValueError:continue
+    return points

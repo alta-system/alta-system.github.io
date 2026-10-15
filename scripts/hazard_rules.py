@@ -5,6 +5,8 @@ PATTERNS = [
  ('missile/rocket',r'\b(?:MISSILE(?:S)?|ROCKET(?:S)?|SPACE\s+(?:LAUNCH|DEBRIS)|RE[ -]?ENTRY)\b'),
  ('live-fire/weapons',r'\b(?:LIVE[ -]FIR(?:E|ING)|GUNFIRE|GUNNERY|FRNG|FIRING|WEAPONS?\s+(?:EXERCISE|TRAINING|TEST)|BOMBING)\b'),
  ('military-exercise',r'\b(?:MILITARY|NAVAL|ARMED FORCES|DEFEN[CS]E)\b.{0,70}\b(?:EXERCISE|EXER|TRAINING|OPERATIONS?|ACTIVITY)\b'),
+ ('security-incident',r'\b(?:PIRACY|PIRATES|ARMED ATTACK|SECURITY INCIDENT|UNEXPLODED ORDNANCE|SEA MINES|DRIFTING MINES|GPS JAMMING|GNSS INTERFERENCE)\b'),
+ ('cn-critical',r'军事训练|军事演习|实弹射击|导弹|火箭发射|军事实弹'),
  ('security-restriction',r'\b(?:TERRORIS[MT]|ANTI[ -]?TERROR|NATIONAL SECURITY|SECURITY THREAT|HOSTILITIES|ARMED CONFLICT)\b'),
  ('jp-critical',r'ミサイル|ロケット|実弾|射撃|射爆撃|武器訓練|軍事演習|テロ警戒')
 ]

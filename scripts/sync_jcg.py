@@ -11,10 +11,11 @@ from pathlib import Path
 from urllib.parse import urlencode
 from urllib.request import Request,build_opener
 from update_airspace import ROOT,NoRedirect,write_json,utcnow,date,polygon_geometry
-from notam_text import extract,angle
+from notam_text import reference_points,extract,angle
 from hazard_rules import classify,altitude
+from maritime_time import times
 BASE='https://www1.kaiho.mlit.go.jp/TUHO/keiho/'
-SOURCES={'NAVAREA11':('navarea11.html','JCG NAVAREA XI'),'JAPANNW':('japan_nw.html','JCG 日本航行警報')}
+SOURCES={'NAVTEX':('navtex.html','JCG NAVTEX 日本沿岸'), 'NAVAREA11':('navarea11.html','JCG NAVAREA XI'),'JAPANNW':('japan_nw.html','JCG 日本航行警報')}
 class Text(HTMLParser):
     def __init__(self):super().__init__();self.parts=[]
     def handle_data(self,data):self.parts.append(data)
@@ -70,10 +71,15 @@ def build(rows,texts,kind,stamp):
         if not reasons:continue
         ident='JCG:'+kind+':'+row['tana'];shape,warning=geometry(text)
         props=dict(id=ident,featureId=ident,name=row['title']+' / '+row['tana'],country='ZZ',countryBasis='海域警報。発行機関の国と海域の帰属を区別',layer='NAVWARN',type='Danger',source=SOURCES[kind][1],authority='Japan Coast Guard',sourceURL=BASE+'cgi/disp_warnings.cgi?'+urlencode(dict(TYPE=kind,TANA=row['tana'],LANG='JP')),text=text,originalText=text,criticalReasons=reasons,altitude=altitude(''),validFrom=None,validTo=None,timeStatus='source-listed-schedule-unparsed',schedule='JCGの現行一覧掲載。実施日・時間帯は原文参照（現在実施中を意味しません）',fetchedAt=stamp)
+        props.update(times(text,props.get('issued')))
+        if props.get('validTo') and date(props['validTo'])<=date(stamp):continue
         g=None
         if shape and 'geometry' in shape:g=shape['geometry'];props['accuracy']='text-boundary'
         elif shape and 'circle' in shape:
             c=shape['circle'];g={'type':'Point','coordinates':c['center']};props.update(accuracy='text-circle',radius_m=c['radius']*{'NM':1852,'KM':1000,'M':1}[c['unit']])
+        if g is None:
+            points=reference_points(normalize(text))
+            if points:g={'type':'MultiPoint','coordinates':points};props.update(accuracy='reference-point',geometryNote='本文の参照座標のみ。境界・半径は未確定。')
         if g:features.append(dict(type='Feature',id=ident,geometry=g,properties=props))
         else:unplotted.append(dict(props,unplottedReason=warning or '本文から境界を確定できません'))
     return dict(type='FeatureCollection',features=features,unplotted=unplotted,metadata=dict(status='ok',source=SOURCES[kind][1],sourceURL=BASE+SOURCES[kind][0],lastAttempt=stamp,lastSuccess=stamp,retained=len(features)+len(unplotted),plotted=len(features),unplotted=len(unplotted),coverage='海上保安庁の現行一覧に掲載された警報。全世界の網羅ではありません。'))
@@ -104,5 +110,5 @@ def sync(kind,path):
         write_json(path,result);print(kind+'_PUBLISHED='+str(result['metadata']['retained']));return 0
     except Exception as e:
         old=old or dict(type='FeatureCollection',features=[],unplotted=[],metadata={})
-        old['metadata'].update(status='error',source=SOURCES[kind][1],sourceURL=BASE+SOURCES[kind][0],lastAttempt=stamp,error='JCG公式一覧・本文の取得検証に失敗。前回分を保持。')
+        old['metadata'].update(status='error',source=SOURCES[kind][1],sourceURL=BASE+SOURCES[kind][0],lastAttempt=stamp,error='JCG公式一覧・本文の取得検証に失敗。前回分を保持。',errorCode=('http_'+str(e.code)) if hasattr(e,'code') else type(e).__name__)
         write_json(path,old);print(kind+'_FAILED='+type(e).__name__);return 1

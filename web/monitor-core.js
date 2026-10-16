@@ -26,5 +26,31 @@ function coordinateText(value){
  return coordinate(angle(m[1],m[2],true),angle(m[3],m[4],false));
 }
 function additions(previous,all,visible,box){if(previous===null)return [];return visible.filter(f=>!previous.has(f.id)&&inBox(f,box));}
-const api={regions,countryRegion,points,inBox,coordinate,coordinateText,additions};if(typeof module!=='undefined')module.exports=api;root.AltaMonitor=api;
+
+function signature(f){
+ const p=f.properties||{};
+ const value=JSON.stringify([f.geometry,p.name,p.text,p.originalText,p.validFrom,p.validTo,p.schedule,p.altitude,p.radius_m,p.type,p.lastUpdated]);
+ let h=2166136261;for(let i=0;i<value.length;i++){h^=value.charCodeAt(i);h=Math.imul(h,16777619);}
+ return (h>>>0).toString(16);
+}
+function notificationScan(previous,all,visible,box,now){
+ const state=previous&&previous.version===1?previous:{version:1,known:{},notified:{},lastScan:null};
+ const known={},notified={...state.notified},events=[];
+ for(const [id,f] of all)known[id]=signature(f);
+ for(const f of visible){
+  if(!inBox(f,box))continue;
+  const p=f.properties||{},sig=known[f.id],issued=Date.parse(p.issuedISO||p.issued||''),start=Date.parse(p.validFrom||'');
+  let reason=null;
+  if(state.lastScan==null){if(Number.isFinite(issued)&&issued<=now&&now-issued<=10800000)reason='発表から3時間以内';}
+  else if(!Object.prototype.hasOwnProperty.call(state.known,f.id))reason='新規取得';
+  else if(state.known[f.id]!==sig)reason='内容更新';
+  else if(Number.isFinite(start)&&start>state.lastScan&&start<=now)reason='有効期間に入りました';
+  const key=sig+':'+reason;
+  if(reason&&notified[f.id]!==key){events.push({feature:f,reason});notified[f.id]=key;}
+ }
+ for(const id of Object.keys(notified))if(!all.has(id))delete notified[id];
+ return {state:{version:1,known,notified,lastScan:now},events};
+}
+
+const api={signature,notificationScan,regions,countryRegion,points,inBox,coordinate,coordinateText,additions};if(typeof module!=='undefined')module.exports=api;root.AltaMonitor=api;
 })(typeof window==='undefined'?globalThis:window);

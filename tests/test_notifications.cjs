@@ -1,0 +1,18 @@
+const assert=require('node:assert/strict'),M=require('../web/monitor-core.js');
+const now=Date.parse('2026-10-16T03:00:00Z'),box=[20,120,45,150];
+const f=(id,p={})=>({id,geometry:{type:'Point',coordinates:[140,35]},properties:{name:id,text:'exercise',issued:new Date(now-1000).toISOString(),...p}});
+let a=f('a'),all=new Map([['a',a]]),r=M.notificationScan(null,all,[a],box,now);
+assert.equal(r.events.length,1);
+r=M.notificationScan(r.state,all,[a],box,now+1000);assert.equal(r.events.length,0);
+a=f('a',{text:'exercise updated'});all=new Map([['a',a]]);
+r=M.notificationScan(r.state,all,[a],box,now+2000);assert.equal(r.events[0].reason,'内容更新');
+const b=f('b',{validFrom:new Date(now+4000).toISOString()});all.set('b',b);
+r=M.notificationScan(r.state,all,[a],box,now+3000);assert.equal(r.events.length,0);
+r=M.notificationScan(r.state,all,[a,b],box,now+5000);assert.equal(r.events[0].reason,'有効期間に入りました');
+const c=f('c');all.set('c',c);
+r=M.notificationScan(r.state,all,[a,b,c],box,now+6000);assert.equal(r.events[0].reason,'新規取得');
+const outside=f('d');outside.geometry.coordinates=[0,0];all.set('d',outside);
+r=M.notificationScan(r.state,all,[outside],box,now+7000);assert.equal(r.events.length,0);
+const old=f('old',{issued:new Date(now-14400000).toISOString()});
+assert.equal(M.notificationScan(null,new Map([['old',old]]),[old],box,now).events.length,0);
+console.log('Notification new/update/activation/initial/bounds regression passed');

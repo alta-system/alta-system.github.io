@@ -40,6 +40,7 @@ jobs:
           node tests/test_refresh.cjs
           node tests/test_monitor.cjs
           node tests/test_map_hover.cjs
+          node tests/test_notifications.cjs
           node tests/test_security.mjs
       - name: Sync FAA worldwide classifications and changes
         env:

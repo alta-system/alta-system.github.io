@@ -10,6 +10,7 @@ class Navarea9Tests(unittest.TestCase):
         rows=listing(html)
         self.assertEqual(rows[0]['number'],'374/26')
         self.assertTrue(rows[0]['url'].endswith('/warnings/374.pdf'))
+        self.assertIn('NAVAREA%20IX',official_url('/NAVAREA IX/374.pdf'))
         with self.assertRaises(ValueError):official_url('https://example.com/x.pdf')
         with self.assertRaises(ValueError):listing('<html>Access denied</html>')
     def test_polygon_circle_and_expiry(self):

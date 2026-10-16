@@ -4,7 +4,7 @@ Hourly, bounded requests; public same-origin HTTPS only. No credentials/retries.
 import io,json,re,time
 from html.parser import HTMLParser
 from pathlib import Path
-from urllib.parse import urljoin,urlsplit
+from urllib.parse import urljoin,urlsplit,urlunsplit,quote
 from urllib.request import Request,build_opener
 from update_airspace import ROOT,NoRedirect,write_json,utcnow,date
 from hazard_rules import classify
@@ -35,7 +35,7 @@ def official_url(href):
     u=urljoin(URL,href);p=urlsplit(u)
     if p.scheme!='https' or p.hostname!=HOST or p.username or p.password or p.port not in (None,443):
         raise ValueError('untrusted_document_url')
-    return u
+    return urlunsplit((p.scheme,p.netloc,quote(p.path,safe='/%:@'),quote(p.query,safe='=&%+/:@'),''))
 
 def listing(html):
     if 'enforced Navigational Warnings' not in html and 'inforce' not in html.lower():
@@ -99,13 +99,13 @@ def build(rows,texts,stamp):
         if g:features.append(dict(type='Feature',id=ident,geometry=g,properties=props))
         else:unplotted.append(dict(props,unplottedReason=warning or '原文に確定できる座標なし'))
     return dict(type='FeatureCollection',features=features,unplotted=unplotted,metadata=dict(
-        status='ok',source=SOURCE,sourceURL=URL,lastAttempt=stamp,lastSuccess=stamp,
+        status='ok',parserVersion='navarea9-v2',source=SOURCE,sourceURL=URL,lastAttempt=stamp,lastSuccess=stamp,
         retained=len(features)+len(unplotted),plotted=len(features),unplotted=len(unplotted),
         coverage='パキスタン海軍のNAVAREA IX現行一覧（紅海・湾岸・アラビア海）の配信分'))
 
 def sync(path):
     path=Path(path);stamp=utcnow();old=json.loads(path.read_text()) if path.exists() else None
-    if old and old['metadata'].get('lastAttempt') and (date(stamp)-date(old['metadata']['lastAttempt'])).total_seconds()<3600:
+    if old and old['metadata'].get('parserVersion')=='navarea9-v2' and old['metadata'].get('lastAttempt') and (date(stamp)-date(old['metadata']['lastAttempt'])).total_seconds()<3600:
         return int(old['metadata'].get('status')!='ok')
     try:
         rows=listing(fetch(URL).decode('utf-8-sig'))
@@ -131,7 +131,7 @@ def sync(path):
         write_json(path,result);print('PK_NAVAREA9_PUBLISHED='+str(result['metadata']['retained']));return 0
     except Exception as exc:
         old=old or dict(type='FeatureCollection',features=[],unplotted=[],metadata={})
-        old['metadata'].update(status='error',source=SOURCE,sourceURL=URL,lastAttempt=stamp,
+        old['metadata'].update(status='error',parserVersion='navarea9-v2',source=SOURCE,sourceURL=URL,lastAttempt=stamp,
             error='NAVAREA IX公式一覧・本文の取得検証に失敗。前回成功分を保持。',
             errorCode='http_'+str(exc.code) if hasattr(exc,'code') else type(exc).__name__)
         write_json(path,old);print('PK_NAVAREA9_FAILED='+old['metadata']['errorCode']);return 1

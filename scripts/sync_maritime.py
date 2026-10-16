@@ -68,16 +68,18 @@ def combine(paths,output):
     unplotted=[p for feed in feeds for p in feed['unplotted']]
     ok=all(m.get('status')=='ok' for m in metadata)
     stamps=[m.get('lastSuccess') for m in metadata if m.get('lastSuccess')]
-    meta=dict(status='ok' if ok else 'error',source='Official maritime warnings: NGA + Japan Coast Guard',sources=metadata,lastAttempt=utcnow(),lastSuccess=min(stamps) if len(stamps)==len(feeds) else None,received=sum(m.get('received',0) for m in metadata),retained=len(features)+len(unplotted),plotted=len(features),unplotted=len(unplotted),coverage='NGA、JCG NAVAREA XI、日本航行警報、NAVTEXの配信分。全世界網羅ではありません。')
+    meta=dict(status='ok' if ok else 'error',source='Official maritime warnings: NGA + Japan Coast Guard + Pakistan NHO',sources=metadata,lastAttempt=utcnow(),lastSuccess=min(stamps) if len(stamps)==len(feeds) else None,received=sum(m.get('received',0) for m in metadata),retained=len(features)+len(unplotted),plotted=len(features),unplotted=len(unplotted),coverage='NGA、JCG、Pakistan NAVAREA IXの取得成功分。各ソースの状態を参照。全世界網羅ではありません。')
     if not ok:meta['error']='海域の一部ソースで取得失敗。各ソースの最終成功分を表示。'
     write_json(Path(output),dict(type='FeatureCollection',features=features,unplotted=unplotted,metadata=meta))
 
 if __name__=='__main__':
     from sync_jcg import sync as sync_jcg
+    from sync_navarea9 import sync as sync_navarea9
     folder=ROOT/'web/maritime'
     result=sync(folder/'nga.json')
     result+=sync_jcg('NAVAREA11',folder/'jcg_navarea11.json')
     result+=sync_jcg('JAPANNW',folder/'jcg_japannw.json')
     result+=sync_jcg('NAVTEX',folder/'jcg_navtex.json')
-    combine([folder/'nga.json',folder/'jcg_navarea11.json',folder/'jcg_japannw.json',folder/'jcg_navtex.json'],folder/'index.json')
+    result+=sync_navarea9(folder/'pk_navarea9.json')
+    combine([folder/'nga.json',folder/'jcg_navarea11.json',folder/'jcg_japannw.json',folder/'jcg_navtex.json',folder/'pk_navarea9.json'],folder/'index.json')
     Path('/tmp/maritime-errors').write_text(str(result))

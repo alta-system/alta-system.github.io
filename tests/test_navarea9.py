@@ -1,7 +1,7 @@
 import sys,unittest
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'scripts'))
-from sync_navarea9 import listing,build,official_url
+from sync_navarea9 import listing,build,official_url,geometry
 from hazard_rules import classify
 
 class Navarea9Tests(unittest.TestCase):
@@ -30,3 +30,10 @@ class Navarea9Tests(unittest.TestCase):
         a=build(rows,{'2/26':'SECURITY INCIDENT REPORTED. POSITION UNKNOWN.'},'2026-10-16T00:00:00Z')
         self.assertEqual(a['features'],[])
         self.assertEqual(len(a['unplotted']),1)
+
+    def test_separate_official_firing_areas(self):
+        shape,warning=geometry("291500 UTC SEP 2026\r\nNAVAREA IX 343/26\r\nARABIAN SEA\r\nPAKISTAN\r\nCHARTS PAK 33, 57 (INT 751), BA 38 AND 707\r\n\r\n1. NAVAL SHIPS WILL CONDUCT LIVE FIRING PRACTICE BETWEEN\r\n0300 TO 1900 UTC FROM 01-02, 05-09, 12-16, 19-23 AND 26-30\r\nOCT 26 IN FOLLOWING AREAS:\r\n\r\nSURFACE AND ANTI AIRCRAFT FIRING AREAS\r\n\r\nA.\r\n\r\n24-24.30N 066-42.00E\r\n24-19.00N 066-58.00E\r\n24-00.00N 066-39.00E\r\n24-11.00N 066-27.00E\r\n\r\nB.\r\n\r\n24-36.02N 062-30.03E\r\n24-36.02N 063-15.03E\r\n24-21.02N 063-15.03E\r\n24-21.02N 062-30.03E\r\n\r\nC.\r\n\r\n24-36.02N 061-45.03E\r\n24-36.02N 062-30.03E\r\n24-21.02N 062-30.03E\r\n24-21.02N 061-45.03E\r\n\r\nDEPTH CHARGE FIRING AREA\r\n\r\nD. \r\n\r\n24-22.00N 066-27.00E\r\n24-16.30N 066-33.00E\r\n24-10.30N 066-27.00E\r\n24-16.18N 066-20.50E\r\n\r\nMARINERS KEEP WELL CLEAR OF EXERCISE AREAS\r\n\r\n2. CANCEL THIS MSG 302000 UTC OCT 26\r\n")
+        self.assertEqual(shape['geometry']['type'],'MultiPolygon')
+        self.assertEqual(len(shape['geometry']['coordinates']),4)
+        for polygon in shape['geometry']['coordinates']:
+            self.assertEqual(len(polygon[0]),5)

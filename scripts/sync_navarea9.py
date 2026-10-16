@@ -72,6 +72,18 @@ def document_text(raw):
     if len(text)<30 or len(text)>200000:raise ValueError('document_text')
     return text
 
+def geometry(body):
+    # The NHO explicitly lists separate firing areas A., B., ... on their own lines.
+    # Parse each chain independently; never bridge the gaps between exercise areas.
+    if re.search(r'\bIN FOLLOWING AREAS\s*:',body,re.I):
+        blocks=re.split(r'(?m)^\s*[A-Z]\.\s*\n',body)
+        if len(blocks)>2:
+            shapes=[extract('AREA BOUNDED BY '+block) for block in blocks[1:]]
+            if all(shape and shape.get('geometry',{}).get('type')=='Polygon' for shape,_ in shapes):
+                return {'geometry':{'type':'MultiPolygon','coordinates':[shape['geometry']['coordinates'] for shape,_ in shapes]}},None
+            return None,'複数演習海域の一部の境界が未確定'
+    return extract(body)
+
 def build(rows,texts,stamp):
     features=[];unplotted=[]
     for row in rows:
@@ -87,7 +99,7 @@ def build(rows,texts,stamp):
             schedule='公式現行一覧掲載。個別の実施時刻は原文参照',criticalReasons=reasons,fetchedAt=stamp)
         props.update(times(body,row['issued']))
         if props.get('validTo') and date(props['validTo'])<=date(stamp):continue
-        shape,warning=extract(body);g=None
+        shape,warning=geometry(body);g=None
         if shape and 'geometry' in shape:g=shape['geometry'];props['accuracy']='text-boundary'
         elif shape and 'circle' in shape:
             c=shape['circle'];g=dict(type='Point',coordinates=c['center'])
@@ -105,6 +117,16 @@ def build(rows,texts,stamp):
 
 def sync(path):
     path=Path(path);stamp=utcnow();old=json.loads(path.read_text()) if path.exists() else None
+    if old:
+        changed=False
+        for feature in old.get('features',[]):
+            props=feature['properties']
+            if props.get('accuracy')!='reference-point':continue
+            shape,warning=geometry(props.get('originalText',''))
+            if shape and 'geometry' in shape:
+                feature['geometry']=shape['geometry'];props['accuracy']='text-boundary'
+                props.pop('geometryNote',None);props.pop('textGeometryWarning',None);changed=True
+        if changed:write_json(path,old)
     if old and old['metadata'].get('parserVersion')=='navarea9-v2' and old['metadata'].get('lastAttempt') and (date(stamp)-date(old['metadata']['lastAttempt'])).total_seconds()<3600:
         return int(old['metadata'].get('status')!='ok')
     try:

@@ -21,3 +21,9 @@ assert.equal(S.intersects(dateline,[-.5,-1,.5,1]),false);
 assert.equal(S.hit(dateline,[180,0],project,180,0),true);
 assert.equal(S.intersects({geometry:null,properties:{}},[0,0,1,1]),false);
 console.log('Overlap, holes, circle, rectangle crossing and dateline selection passed');
+
+const multi={geometry:{type:'MultiPoint',coordinates:[[45,25],[65,30]]},properties:{}};
+assert.equal(S.intersects(multi,[24,44,26,46]),true);
+assert.equal(S.intersects(multi,[26,46,29,64]),false);
+assert.equal(S.hit(multi,[45,25],project,45,1),true);
+console.log('MultiPoint selection and hit testing passed');

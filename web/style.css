@@ -150,3 +150,5 @@ body.map-page{grid-template-rows:auto auto auto minmax(0,1fr)}
 .area{padding:9px;margin-bottom:7px}
 .area strong{margin:6px 0}
 @media(max-width:650px){.map-control-dock{width:190px;top:10px;left:10px}.range-tools small{max-height:32px;overflow:auto}.map-page .range-tools{padding:8px!important}.range-tools #range-draw{padding:8px}}
+
+.map-page .region-tabs .range-tab{position:static;left:auto;margin:3px 6px;background:#173f43;color:#baf9eb;border-color:#409b8b}

@@ -1,0 +1,23 @@
+const assert=require('node:assert/strict'),S=require('../web/spatial.js');
+const poly=(rings,id='p')=>({id,geometry:{type:'Polygon',coordinates:rings},properties:{}});
+const outer=[[-10,-10],[10,-10],[10,10],[-10,10],[-10,-10]];
+const big=poly([outer],'big'),small=poly([[[-1,-1],[1,-1],[1,1],[-1,1],[-1,-1]]],'small');
+const project=xy=>xy;
+assert.deepEqual([big,small].filter(f=>S.hit(f,[0,0],project,0,0)).map(f=>f.id),['big','small']);
+const hole=poly([outer,[[-2,-2],[2,-2],[2,2],[-2,2],[-2,-2]]]);
+assert.equal(S.hit(hole,[0,0],project,0,0),false);
+assert.equal(S.intersects(big,[-1,-1,1,1]),true); // selection wholly inside polygon
+assert.equal(S.intersects(hole,[-1,-1,1,1]),false);
+assert.equal(S.intersects(small,[5,5,6,6]),false);
+assert.equal(S.intersects(poly([[[-5,0],[5,0],[5,.1],[-5,.1],[-5,0]]]),[-1,-1,1,1]),true);
+const circle={geometry:{type:'Point',coordinates:[0,0]},properties:{radius_m:111000}};
+assert.equal(S.hit(circle,[.5,0],project,0,0),true);
+assert.equal(S.hit(circle,[2,0],project,0,0),false);
+assert.equal(S.intersects(circle,[-.1,.8,.1,1.2]),true);
+assert.equal(S.intersects(circle,[2,2,3,3]),false);
+const dateline=poly([[[179,-1],[-179,-1],[-179,1],[179,1],[179,-1]]]);
+assert.equal(S.intersects(dateline,[-.5,179.5,.5,180.5]),true);
+assert.equal(S.intersects(dateline,[-.5,-1,.5,1]),false);
+assert.equal(S.hit(dateline,[180,0],project,180,0),true);
+assert.equal(S.intersects({geometry:null,properties:{}},[0,0,1,1]),false);
+console.log('Overlap, holes, circle, rectangle crossing and dateline selection passed');

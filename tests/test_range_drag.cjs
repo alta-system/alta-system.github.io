@@ -9,3 +9,8 @@ event('pointerdown',110,120);event('pointercancel',200,200);event('pointerup',21
 event('pointerdown',110,120);event('pointerup',900,900);assert.deepEqual(done[2],[[100,100],[500,300]]);
 event('pointerdown',110,120);controller.reset();assert.equal(preview.hidden,true);
 console.log('Drag preview, release, touch, cancellation, click rejection and bounds passed');
+
+let offset=0;surface.getBoundingClientRect=()=>({left:10+offset,top:20,width:500,height:300});
+event('pointerdown',110,120);offset=20;event('pointerup',210,220);assert.equal(done.length,3,'Layout movement cancels rather than committing shifted bounds');
+offset=0;event('pointerdown',110,120);surface.getBoundingClientRect=()=>({left:10,top:20,width:700,height:300});event('pointermove',210,220);assert.equal(preview.hidden,true);event('pointerup',210,220);assert.equal(done.length,3);
+console.log('Layout movement and resize cancellation passed');

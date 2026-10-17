@@ -121,3 +121,32 @@ body.map-page{grid-template-rows:auto auto auto minmax(0,1fr)}
 .range-drag-surface[hidden]{display:none}
 #range-drag-preview{position:absolute;border:2px solid #5eead4;background:#5eead426;pointer-events:none;box-sizing:border-box}
 .range-tools{z-index:1001}
+
+/* Fixed control dock: the range tool never overlaps coordinate or map controls. */
+.map-page .region-tabs .range-tab{position:sticky;left:0;z-index:2;background:#173f43;color:#baf9eb;border:1px solid #409b8b;border-radius:5px;margin:3px 10px 3px 0;font-weight:700}
+.map-control-dock{position:absolute;top:12px;left:12px;z-index:1002;width:218px;display:flex;flex-direction:column;gap:8px;pointer-events:none;max-height:calc(100% - 100px)}
+.map-control-dock>*{pointer-events:auto}
+.map-page .map-control-dock .range-tools,.map-page .map-control-dock .jump-form,.map-page .map-control-dock .map-style-control{position:static;width:100%;max-width:none;margin:0}
+.map-page .map-control-dock .range-tools{border:1px solid #5eead4;box-shadow:0 4px 18px #0005;background:#0b292ff5;padding:10px}
+.range-tools strong{display:block;font-size:13px;color:#a9f5e6}
+.range-tools #range-draw{display:block;width:100%;margin:8px 0 0;padding:10px;background:#235d55;border:1px solid #55b9a6;border-radius:5px;color:white;font-weight:600}
+.range-tools #range-current{background:transparent;border:0;color:#a8c9c5;text-decoration:underline;padding:3px;margin:5px 0;font-size:11px}
+.range-tools small{font-size:10px;line-height:1.5;overflow-wrap:anywhere}
+.map-page .map-title{display:none}
+.drawing-range .jump-form,.drawing-range .map-style-control,.drawing-range .map-fit,.drawing-range .leaflet-control-zoom{pointer-events:none;opacity:.35}
+#range-drag-preview{border:0;outline:2px solid #5eead4;outline-offset:-1px}
+.map-page main>aside{overflow:hidden}
+.alerts-heading{padding:14px 14px 8px;flex-shrink:0}
+.alerts-heading h2{font-size:15px;font-weight:650;margin:0 0 10px}
+.alerts-heading #count{background:#173c42;color:#86ecd8;padding:2px 7px;border-radius:4px}
+.alerts-heading input{padding:8px 10px;margin:0;font-size:12px}
+.sidebar-options{flex-shrink:0;max-height:45%;overflow:auto;padding:0 14px 6px;border-bottom:1px solid #29414d;font-size:11px}
+.sidebar-options summary{cursor:pointer;padding:7px 0!important;color:#a9c9c8}
+.sidebar-options .feed-summary{padding:8px 0}
+.sidebar-options .pdf-tools{padding:8px 0}
+.map-page .results{flex:1;min-height:0;overflow:auto;overscroll-behavior:contain;padding:8px 12px}
+.results h3{margin:8px 0;font-size:11px}
+.map-page .unplotted{flex-shrink:0;max-height:25%;overflow:auto;padding:9px 14px;font-size:11px}
+.area{padding:9px;margin-bottom:7px}
+.area strong{margin:6px 0}
+@media(max-width:650px){.map-control-dock{width:190px;top:10px;left:10px}.range-tools small{max-height:32px;overflow:auto}.map-page .range-tools{padding:8px!important}.range-tools #range-draw{padding:8px}}

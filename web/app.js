@@ -70,9 +70,16 @@ $('#map').addEventListener('pointerleave',hideHover);
 window.addEventListener('blur',hideHover);
 function draw(f,anchor){const p=f.properties,g=shiftedGeometry(f.geometry,anchor),selected=selectedAlerts.has(f.id);const style={color:selected?'#5eead4':baseColor(f),weight:selected?4:2,fillColor:baseColor(f),fillOpacity:p.accuracy==='qline-envelope'?.025:.07,dashArray:p.accuracy==='qline-envelope'?'6 5':undefined};let l;if(g.type==='Point'){const [lon,lat]=g.coordinates;l=Number.isFinite(p.radius_m)&&p.radius_m>0?L.circle([lat,lon],{...style,radius:p.radius_m}):L.circleMarker([lat,lon],{...style,radius:5,fillOpacity:.7});}else l=L.geoJSON({...f,geometry:g},{style,pointToLayer:(_,latlng)=>L.circleMarker(latlng,{...style,radius:6,fillOpacity:.5,dashArray:'2 3'})});l.on('mouseover',e=>showHover(f,e));l.on('mousemove',e=>showHover(f,e));l.on('mouseout',hideHover);l.on('remove',hideHover);l.on('click',e=>{if(e.originalEvent)L.DomEvent.stopPropagation(e.originalEvent);if(rangeDrawing)return;selectAt(e.latlng,f);});group.addLayer(l);layers.set(f.id,l);return l;}
 
+let lockedMapHandlers=null;
+function lockRangeMap(on){
+ if(!map)return;
+ if(on&&!lockedMapHandlers){map.stop();lockedMapHandlers=['dragging','touchZoom','doubleClickZoom','scrollWheelZoom','boxZoom','keyboard'].filter(k=>map[k]?.enabled());for(const k of lockedMapHandlers)map[k].disable();hideHover();$('#detail-panel').hidden=true;$('#overlap-panel').hidden=true;}
+ else if(!on&&lockedMapHandlers){for(const k of lockedMapHandlers)map[k].enable();lockedMapHandlers=null;}
+ $('.map-shell').classList.toggle('drawing-range',on);
+}
 function updateRangeUI(){
  $('#range-tools').hidden=region!=='range';
- const drawing=region==='range'&&rangeDrawing;$('#range-drag-surface').hidden=!drawing;if(!drawing)rangeDrag.reset();
+ const drawing=region==='range'&&rangeDrawing;lockRangeMap(drawing);$('#range-drag-surface').hidden=!drawing;if(!drawing)rangeDrag.reset();
  $('#range-draw').textContent=drawing?'範囲指定を中止':'範囲指定を開始';
  $('#range-status').textContent=rangeDrawing?'地図をドラッグして、離すと範囲が確定します（Escで中止）':rangeBox?`北緯 ${rangeBox[0].toFixed(2)}〜${rangeBox[2].toFixed(2)} / 経度 ${rangeBox[1].toFixed(2)}〜${rangeBox[3].toFixed(2)}`:'範囲を指定してください';
  $('#range-draw').setAttribute('aria-pressed',String(rangeDrawing));
@@ -104,7 +111,9 @@ const rangeDrag=AltaRangeDrag.attach($('#range-drag-surface'),$('#range-drag-pre
  rangeDrawing=false;rangeStart=null;syncURL();render();
 });
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&rangeDrawing){rangeDrawing=false;rangeStart=null;updateRangeUI();}});
-window.addEventListener('blur',()=>rangeDrag.reset());
+function cancelRangeDrag(){if(rangeDrawing){rangeDrawing=false;rangeStart=null;updateRangeUI();}else rangeDrag.reset();}
+window.addEventListener('blur',cancelRangeDrag);
+if(map)map.on('resize',cancelRangeDrag);
 
 function fitVisible(){if(!map)return;if(group.getLayers().length){map.fitBounds(group.getBounds(),{padding:[50,50],maxZoom:8,animate:false});}else{const chosen=catalog.filter(c=>selectedCountries.has(c.code));if(chosen.length===1)map.setView(chosen[0].center,4,{animate:false});else if(chosen.length){const a=longitudeAnchor(chosen.map(c=>({geometry:{type:'Point',coordinates:[c.center[1],c.center[0]]}})));map.fitBounds(chosen.map(c=>{let lon=(c.center[1]+360)%360;if(lon<a)lon+=360;return [c.center[0],lon]}),{padding:[50,50],maxZoom:5,animate:false});}else map.setView([25,20],2);}}
 function jumpCountry(code){if(!map)return;const ls=visible.filter(f=>f.properties.country===code).map(f=>layers.get(f.id)).filter(Boolean);if(ls.length)map.fitBounds(L.featureGroup(ls).getBounds(),{padding:[45,45],maxZoom:8,animate:false});else{const c=catalog.find(c=>c.code===code);if(c)map.setView(c.center,4,{animate:false});}}

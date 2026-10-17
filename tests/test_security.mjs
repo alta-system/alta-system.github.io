@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {webcrypto} from 'node:crypto';
-globalThis.crypto=webcrypto;
+if(!globalThis.crypto)Object.defineProperty(globalThis,'crypto',{value:webcrypto});
 const {default:worker}=await import('../security/worker.mjs');
 const origin='https://alta.example';
 const env={ALTA_SITE_PASSWORD:'test-password-only-123456',ALTA_SESSION_SECRET:'test-session-key-only-1234567890123456789',RATE_LIMITER:{limit:async()=>({success:true})},ASSETS:{fetch:async()=>new Response('map')}};

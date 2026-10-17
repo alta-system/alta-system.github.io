@@ -68,17 +68,18 @@ function showHover(f,event){
 }
 $('#map').addEventListener('pointerleave',hideHover);
 window.addEventListener('blur',hideHover);
-function draw(f,anchor){const p=f.properties,g=shiftedGeometry(f.geometry,anchor),selected=selectedAlerts.has(f.id);const style={color:selected?'#5eead4':baseColor(f),weight:selected?4:2,fillColor:baseColor(f),fillOpacity:p.accuracy==='qline-envelope'?.025:.07,dashArray:p.accuracy==='qline-envelope'?'6 5':undefined};let l;if(g.type==='Point'){const [lon,lat]=g.coordinates;l=Number.isFinite(p.radius_m)&&p.radius_m>0?L.circle([lat,lon],{...style,radius:p.radius_m}):L.circleMarker([lat,lon],{...style,radius:5,fillOpacity:.7});}else l=L.geoJSON({...f,geometry:g},{style,pointToLayer:(_,latlng)=>L.circleMarker(latlng,{...style,radius:6,fillOpacity:.5,dashArray:'2 3'})});l.on('mouseover',e=>showHover(f,e));l.on('mousemove',e=>showHover(f,e));l.on('mouseout',hideHover);l.on('remove',hideHover);l.on('click',e=>{if(e.originalEvent)L.DomEvent.stopPropagation(e.originalEvent);if(rangeDrawing){rangeClick(e.latlng);return;}selectAt(e.latlng,f);});group.addLayer(l);layers.set(f.id,l);return l;}
+function draw(f,anchor){const p=f.properties,g=shiftedGeometry(f.geometry,anchor),selected=selectedAlerts.has(f.id);const style={color:selected?'#5eead4':baseColor(f),weight:selected?4:2,fillColor:baseColor(f),fillOpacity:p.accuracy==='qline-envelope'?.025:.07,dashArray:p.accuracy==='qline-envelope'?'6 5':undefined};let l;if(g.type==='Point'){const [lon,lat]=g.coordinates;l=Number.isFinite(p.radius_m)&&p.radius_m>0?L.circle([lat,lon],{...style,radius:p.radius_m}):L.circleMarker([lat,lon],{...style,radius:5,fillOpacity:.7});}else l=L.geoJSON({...f,geometry:g},{style,pointToLayer:(_,latlng)=>L.circleMarker(latlng,{...style,radius:6,fillOpacity:.5,dashArray:'2 3'})});l.on('mouseover',e=>showHover(f,e));l.on('mousemove',e=>showHover(f,e));l.on('mouseout',hideHover);l.on('remove',hideHover);l.on('click',e=>{if(e.originalEvent)L.DomEvent.stopPropagation(e.originalEvent);if(rangeDrawing)return;selectAt(e.latlng,f);});group.addLayer(l);layers.set(f.id,l);return l;}
 
 function updateRangeUI(){
  $('#range-tools').hidden=region!=='range';
- $('#range-status').textContent=rangeDrawing?(rangeStart?'対角の2点目を選択してください':'地図上で1点目を選択してください'):rangeBox?`北緯 ${rangeBox[0].toFixed(2)}〜${rangeBox[2].toFixed(2)} / 経度 ${rangeBox[1].toFixed(2)}〜${rangeBox[3].toFixed(2)}`:'範囲を指定してください';
+ const drawing=region==='range'&&rangeDrawing;$('#range-drag-surface').hidden=!drawing;if(!drawing)rangeDrag.reset();
+ $('#range-draw').textContent=drawing?'範囲指定を中止':'範囲指定を開始';
+ $('#range-status').textContent=rangeDrawing?'地図をドラッグして、離すと範囲が確定します（Escで中止）':rangeBox?`北緯 ${rangeBox[0].toFixed(2)}〜${rangeBox[2].toFixed(2)} / 経度 ${rangeBox[1].toFixed(2)}〜${rangeBox[3].toFixed(2)}`:'範囲を指定してください';
  $('#range-draw').setAttribute('aria-pressed',String(rangeDrawing));
  if(rangeLayer)map?.removeLayer(rangeLayer);rangeLayer=null;
  if(region==='range'&&rangeBox&&map)rangeLayer=L.rectangle([[rangeBox[0],rangeBox[1]],[rangeBox[2],rangeBox[3]]],{color:'#5eead4',weight:2,dashArray:'8 6',fill:false,interactive:false}).addTo(map);
 }
 function useCurrentRange(){if(!map)return;const b=map.getBounds(),w=b.getWest(),e=Math.min(b.getEast(),w+360);rangeBox=[Math.max(-90,b.getSouth()),w,Math.min(90,b.getNorth()),e];rangeDrawing=false;rangeStart=null;syncURL();}
-function rangeClick(ll){if(!ll)return;if(!rangeStart){rangeStart=ll;updateRangeUI();return;}const a=rangeStart;let lon=ll.lng+360*Math.round((a.lng-ll.lng)/360);if(Math.abs(a.lat-ll.lat)<.00001||Math.abs(a.lng-lon)<.00001){$('#range-status').textContent='幅と高さがある範囲になるよう、離れた2点目を選んでください';return;}rangeBox=[Math.max(-90,Math.min(a.lat,ll.lat)),Math.min(a.lng,lon),Math.min(90,Math.max(a.lat,ll.lat)),Math.max(a.lng,lon)];rangeDrawing=false;rangeStart=null;syncURL();render();}
 function openFeature(f){$('#overlap-panel').hidden=true;showDetail(f);if(pdfMode)toggleAlert(f.id,!selectedAlerts.has(f.id));}
 function selectAt(ll,fallback){
  if(!ll){openFeature(fallback);return;}
@@ -94,7 +95,16 @@ function selectAt(ll,fallback){
 $('#overlap-close').onclick=()=>{$('#overlap-panel').hidden=true;};
 $('#range-current').onclick=()=>{useCurrentRange();render();};
 $('#range-draw').onclick=()=>{rangeDrawing=!rangeDrawing;rangeStart=null;updateRangeUI();};
-if(map)map.on('click',e=>{if(rangeDrawing)rangeClick(e.latlng);});
+const rangeDrag=AltaRangeDrag.attach($('#range-drag-surface'),$('#range-drag-preview'),(a,b)=>{
+ if(!map||region!=='range'||!rangeDrawing)return;
+ const p=map.containerPointToLatLng(a),q=map.containerPointToLatLng(b);
+ const w=Math.min(p.lng,q.lng),e=Math.max(p.lng,q.lng);
+ if(e-w>360){$('#range-status').textContent='世界一周（360度）以内の幅で指定してください';return;}
+ rangeBox=[Math.max(-90,Math.min(p.lat,q.lat)),w,Math.min(90,Math.max(p.lat,q.lat)),e];
+ rangeDrawing=false;rangeStart=null;syncURL();render();
+});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&rangeDrawing){rangeDrawing=false;rangeStart=null;updateRangeUI();}});
+window.addEventListener('blur',()=>rangeDrag.reset());
 
 function fitVisible(){if(!map)return;if(group.getLayers().length){map.fitBounds(group.getBounds(),{padding:[50,50],maxZoom:8,animate:false});}else{const chosen=catalog.filter(c=>selectedCountries.has(c.code));if(chosen.length===1)map.setView(chosen[0].center,4,{animate:false});else if(chosen.length){const a=longitudeAnchor(chosen.map(c=>({geometry:{type:'Point',coordinates:[c.center[1],c.center[0]]}})));map.fitBounds(chosen.map(c=>{let lon=(c.center[1]+360)%360;if(lon<a)lon+=360;return [c.center[0],lon]}),{padding:[50,50],maxZoom:5,animate:false});}else map.setView([25,20],2);}}
 function jumpCountry(code){if(!map)return;const ls=visible.filter(f=>f.properties.country===code).map(f=>layers.get(f.id)).filter(Boolean);if(ls.length)map.fitBounds(L.featureGroup(ls).getBounds(),{padding:[45,45],maxZoom:8,animate:false});else{const c=catalog.find(c=>c.code===code);if(c)map.setView(c.center,4,{animate:false});}}

@@ -107,6 +107,7 @@ def build(rows,texts,stamp):
         else:
             points=reference_points(body)
             if points:g=dict(type='MultiPoint',coordinates=points);props.update(accuracy='reference-point',geometryNote='参照座標のみ。危険区域の境界ではありません。')
+        if shape and shape.get('referenceLines'):props['referenceLines']=shape['referenceLines']
         if warning:props['textGeometryWarning']=warning
         if g:features.append(dict(type='Feature',id=ident,geometry=g,properties=props))
         else:unplotted.append(dict(props,unplottedReason=warning or '原文に確定できる座標なし'))
@@ -126,6 +127,8 @@ def sync(path):
             if shape and 'geometry' in shape:
                 feature['geometry']=shape['geometry'];props['accuracy']='text-boundary'
                 props.pop('geometryNote',None);props.pop('textGeometryWarning',None);changed=True
+                if shape.get('referenceLines'):props['referenceLines']=shape['referenceLines']
+                if warning:props['textGeometryWarning']=warning
         if changed:write_json(path,old)
     if old and old['metadata'].get('parserVersion')=='navarea9-v2' and old['metadata'].get('lastAttempt') and (date(stamp)-date(old['metadata']['lastAttempt'])).total_seconds()<3600:
         return int(old['metadata'].get('status')!='ok')
@@ -159,3 +162,4 @@ def sync(path):
         write_json(path,old);print('PK_NAVAREA9_FAILED='+old['metadata']['errorCode']);return 1
 
 if __name__=='__main__':sync(ROOT/'web/maritime/pk_navarea9.json')
+

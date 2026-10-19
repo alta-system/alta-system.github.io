@@ -30,3 +30,47 @@ class TextRegressionTests(unittest.TestCase):
  def test_route_not_closed_as_area(self):
   s,w=extract('ROUTE 3500N14000E - 3600N14000E - 3600N14100E')
   self.assertIsNone(s)
+
+ def test_real_multipart_firing_preserves_every_reported_edge(self):
+  from notam_text import PAIR,coord
+  import re
+  text=(Path(__file__).parent/'fixtures/multipart_firing.txt').read_text()
+  shape,warning=extract(text)
+  self.assertEqual(len(shape['geometry']['coordinates']),17)
+  self.assertEqual(len(shape['referenceLines']),1)
+  expected=[[coord(m) for m in PAIR.finditer(chunk)] for chunk in re.split(r'\s+AND\s+',text)]
+  expected=[p for p in expected if p]
+  actual=[p[0] for p in shape['geometry']['coordinates']]+shape['referenceLines']
+  self.assertEqual(sorted(map(repr,actual)),sorted(map(repr,expected)))
+  self.assertIn('区域4',warning)
+ def test_truncated_last_area_does_not_hide_closed_areas(self):
+  text=(Path(__file__).parent/'fixtures/multipart_firing.txt').read_text()
+  text=text.replace('085421N1124010E-084915N1123954E AND','')
+  shape,warning=extract(text)
+  self.assertEqual(len(shape['geometry']['coordinates']),16)
+  self.assertEqual(len(shape['referenceLines']),2)
+  self.assertNotEqual(shape['referenceLines'][-1][0],shape['referenceLines'][-1][-1])
+ def test_faa_keeps_partial_geometry_notes_and_lines(self):
+  import publish_faa
+  from test_publish_faa import feature,payload,REFS,NOW
+  f=feature();f['properties']['coreNOTAMData']['notam']['text']=(Path(__file__).parent/'fixtures/multipart_firing.txt').read_text()
+  p=publish_faa.build(payload(f),REFS,NOW)[0]['JP'][0]
+  self.assertEqual(len(p['geometry']['coordinates']),17)
+  self.assertEqual(len(p['properties']['referenceLines']),1)
+  self.assertIn('区域4',p['properties']['textGeometryWarning'])
+ def test_saved_multi_area_repaired_without_an_api_request(self):
+  import json,tempfile
+  from unittest.mock import patch
+  import sync_global as g
+  from test_publish_faa import feature,REFS,NOW
+  records=g.apply({},[feature()],REFS,NOW,'INTERNATIONAL')
+  f=next(iter(records.values()));f['geometry']={'type':'Point','coordinates':[114,9]}
+  f['properties'].update(accuracy='qline-envelope',radius_m=100000,originalText=(Path(__file__).parent/'fixtures/multipart_firing.txt').read_text())
+  with tempfile.TemporaryDirectory() as temp,patch.object(g,'utcnow',return_value=NOW.isoformat()),patch.object(g,'authenticate') as auth:
+   state=Path(temp)/'state.json';state.write_text(json.dumps(dict(records=records,lastAttempt=NOW.isoformat())))
+   self.assertEqual(g.sync(state,Path(temp)/'out'),0);auth.assert_not_called()
+   saved=next(iter(json.loads(state.read_text())['records'].values()))
+   self.assertEqual(len(saved['geometry']['coordinates']),17)
+   self.assertEqual(len(saved['properties']['referenceLines']),1)
+   self.assertNotIn('radius_m',saved['properties'])
+   self.assertIn('区域4',saved['properties']['textGeometryWarning'])

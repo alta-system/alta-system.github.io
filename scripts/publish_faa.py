@@ -104,6 +104,7 @@ def candidate(feature,refs,now):
     if result is None and missing is None:return None,'inactive'
     props=result['properties'] if result else missing
     if parsed_text:props['accuracy']='text-boundary' if 'geometry' in text_geometry else 'text-circle'
+    if parsed_text and text_geometry.get('referenceLines'):props['referenceLines']=text_geometry['referenceLines']
     if text_warning:props['textGeometryWarning']=text_warning
     props.update(layer='NOTAM',criticalReasons=critical,altitude=altitude(original+'\n'+translated,record['lower'],record['upper'],qline))
     props.update(environment='production',countryBasis=basis,matches=reasons,
@@ -200,3 +201,4 @@ if __name__=='__main__':
     parser=argparse.ArgumentParser();parser.add_argument('--output',default=str(ROOT/'web/production'));parser.add_argument('--report',default='')
     args=parser.parse_args();errors=publish(args.output)
     if args.report:Path(args.report).write_text(str(errors))
+

@@ -80,6 +80,8 @@ def build(rows,texts,kind,stamp):
         if g is None:
             points=reference_points(normalize(text))
             if points:g={'type':'MultiPoint','coordinates':points};props.update(accuracy='reference-point',geometryNote='本文の参照座標のみ。境界・半径は未確定。')
+        if shape and shape.get('referenceLines'):props['referenceLines']=shape['referenceLines']
+        if warning:props['textGeometryWarning']=warning
         if g:features.append(dict(type='Feature',id=ident,geometry=g,properties=props))
         else:unplotted.append(dict(props,unplottedReason=warning or '本文から境界を確定できません'))
     return dict(type='FeatureCollection',features=features,unplotted=unplotted,metadata=dict(status='ok',source=SOURCES[kind][1],sourceURL=BASE+SOURCES[kind][0],lastAttempt=stamp,lastSuccess=stamp,retained=len(features)+len(unplotted),plotted=len(features),unplotted=len(unplotted),coverage='海上保安庁の現行一覧に掲載された警報。全世界の網羅ではありません。'))
@@ -112,3 +114,4 @@ def sync(kind,path):
         old=old or dict(type='FeatureCollection',features=[],unplotted=[],metadata={})
         old['metadata'].update(status='error',source=SOURCES[kind][1],sourceURL=BASE+SOURCES[kind][0],lastAttempt=stamp,error='JCG公式一覧・本文の取得検証に失敗。前回分を保持。',errorCode=('http_'+str(e.code)) if hasattr(e,'code') else type(e).__name__)
         write_json(path,old);print(kind+'_FAILED='+type(e).__name__);return 1
+

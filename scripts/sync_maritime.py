@@ -38,6 +38,7 @@ def build(payload,stamp):
         if geometry is None:
             points=reference_points(text)
             if points:geometry={'type':'MultiPoint','coordinates':points};props.update(accuracy='reference-point',geometryNote='本文の参照座標のみ。境界・半径は未確定。')
+        if shape and shape.get('referenceLines'):props['referenceLines']=shape['referenceLines']
         if warning:props['textGeometryWarning']=warning
         if geometry:features.append(dict(type='Feature',id=ident,geometry=geometry,properties=props))
         else:unplotted.append(dict(props,featureId=ident,unplottedReason=warning or '本文から境界を確定できません'))

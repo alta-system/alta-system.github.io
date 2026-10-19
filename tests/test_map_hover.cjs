@@ -17,3 +17,10 @@ assert.equal(hover.children[0].text,'Warning 1');assert.equal(hover.children.len
 rendered[1].handlers.remove();assert.equal(hover.hidden,true);
 console.log('Single hover panel regression passed');
 
+
+context.L.polyline=(coords,options)=>{assert.equal(options.fill,false);return {...layer(),coords}};
+context.L.featureGroup=children=>({...layer(),children});
+context.draw({id:'partial',geometry:{type:'Polygon',coordinates:[[[140,35],[141,35],[141,36],[140,35]]]},properties:{referenceLines:[[[142,35],[143,36],[142,36],[143,35],[142,35]]]}},140);
+assert.equal(rendered.at(-1).children.length,2);
+assert.deepEqual(Array.from(rendered.at(-1).children[1].coords[0]),[35,142]);
+console.log('Independent polygon and unfilled source-order trace rendered under one alert');

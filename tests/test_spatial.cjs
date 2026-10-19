@@ -27,3 +27,12 @@ assert.equal(S.intersects(multi,[24,44,26,46]),true);
 assert.equal(S.intersects(multi,[26,46,29,64]),false);
 assert.equal(S.hit(multi,[45,25],project,45,1),true);
 console.log('MultiPoint selection and hit testing passed');
+
+
+const traced={geometry:{type:'Polygon',coordinates:[[[100,0],[101,0],[101,1],[100,0]]]},properties:{referenceLines:[[[0,0],[10,0],[10,10]]]}};
+const traceAPI=require('../web/spatial.js');
+assert.equal(traceAPI.hit(traced,[5,0],p=>p,0,.1),true);
+assert.equal(traceAPI.hit(traced,[5,5],p=>p,0,.1),false); // No implied closing segment or fill.
+assert.equal(traceAPI.intersects(traced,[-1,4,1,6]),true);
+assert.equal(traceAPI.intersects(traced,[4,4,6,6]),false);
+console.log('Reference line selection preserves open paths without filled interiors');

@@ -17,6 +17,21 @@ def coord(match):
     a,b,c,d=match.groups()
     return position([angle(c,d,3),angle(a,b,2)])
 
+def combine_polygons(results):
+    """Preserve independent usable areas; never discard them as a unit."""
+    polygons=[];lines=[];notes=[]
+    for i,(shape,warning) in enumerate(results,1):
+        if shape and 'geometry' in shape:
+            g=shape['geometry']
+            polygons.extend([g['coordinates']] if g['type']=='Polygon' else g['coordinates'])
+        if shape:lines.extend(shape.get('referenceLines',[]))
+        if shape and 'circle' in shape:notes.append(f'区域{i}: 円の範囲は原文の中心・半径を確認してください。')
+        if warning:notes.append(f'区域{i}: {warning}')
+    if not polygons:return None,' / '.join(notes) or '多角形を確定できません。'
+    result={'geometry':{'type':'MultiPolygon','coordinates':polygons}}
+    if lines:result['referenceLines']=lines
+    return result,(' / '.join(notes) or None)
+
 def extract(value, bounded_chain=False):
     text=re.sub(r'\s+',' ',str(value).upper()).translate(str.maketrans({'–':'-','—':'-','−':'-'}))
     # Restrict interpretation to E) when a full ICAO message is supplied.
@@ -33,30 +48,22 @@ def extract(value, bounded_chain=False):
     parts=re.split(r'\(\d+\)\s*AIRSPACE\s*:',text)
     if len(parts)>2:
         shapes=[extract(b.split('RMK:',1)[0]) for b in parts[1:]]
-        if all(shape and 'geometry' in shape for shape,w in shapes):
-            return {'geometry':{'type':'MultiPolygon','coordinates':[shape['geometry']['coordinates'] for shape,w in shapes]}},None
-        return None,'複数空域の一部の境界を確定できません。'
+        return combine_polygons(shapes)
     if re.search(r'\bAREAS? BOUND(?:ED)? BY\s*:',text):
         parts=re.split(r'\b[A-Z]\.\s*(?=\d{4,6}(?:\.\d+)?[NS])',text)
         if len(parts)>2:
             shapes=[extract('AREA BOUNDED BY '+b) for b in parts[1:]]
-            if all(shape and 'geometry' in shape for shape,w in shapes):
-                return {'geometry':{'type':'MultiPolygon','coordinates':[shape['geometry']['coordinates'] for shape,w in shapes]}},None
-            return None,'複数海域の一部の境界を確定できません。'
+            return combine_polygons(shapes)
     # Separate repeated explicitly bounded areas, even when schedules precede each.
     parts=re.split(r'\b(?:AREA\s+)?BOUND(?:ED)? BY\b',text)
     if len(parts)>2 and not PAIR.search(parts[0]):
         shapes=[extract('AREA BOUNDED BY '+b) for b in parts[1:]]
-        if all(shape and 'geometry' in shape for shape,w in shapes):
-            return {'geometry':{'type':'MultiPolygon','coordinates':[shape['geometry']['coordinates'] for shape,w in shapes]}},None
-        return None,'複数区域の一部の境界を確定できません。'
+        return combine_polygons(shapes)
     # Explicit AREA 1/AREA 2 chains stay separate. Never bridge disjoint zones.
     blocks=re.split(r'\b(?:AREA|ZONE)\s+[A-Z0-9]+\s*(?:[:.)]\s*|(?=\d{4,6}(?:\.\d+)?[NS]))',text)
     if len(blocks)>2:
         shapes=[extract('AREA BOUNDED BY '+b) for b in blocks[1:]]
-        if all(s and 'geometry' in s for s,w in shapes):
-            return {'geometry':{'type':'MultiPolygon','coordinates':[s['geometry']['coordinates'] for s,w in shapes]}},None
-        return None,'複数区域の一部を確定できません。原文を確認してください。'
+        return combine_polygons(shapes)
     matches=list(PAIR.finditer(text))
     if not matches:return None,None
     try:points=[coord(m) for m in matches]
@@ -73,11 +80,21 @@ def extract(value, bounded_chain=False):
             else:
                 chains.append(chain);chain=[b]
         chains.append(chain)
-        if all(len(c)>=3 for c in chains) and any(len(c)>1 for c in chains) and not bounded_chain:
-            shapes=[extract('AREA BOUNDED BY '+ ' TO '.join(m.group() for m in c), bounded_chain=True)[0] for c in chains]
-            if all(s and 'geometry' in s for s in shapes):
-                if len(shapes)==1:return shapes[0],None
-                return {'geometry':{'type':'MultiPolygon','coordinates':[s['geometry']['coordinates'] for s in shapes]}},None
+        if not bounded_chain and any(len(c)>=3 for c in chains):
+            results=[]
+            for c in chains:
+                # A trailing hyphen signals an incomplete continuation; don't invent a closing edge.
+                incomplete=bool(re.match(r'\s*-',text[c[-1].end():]))
+                shape,warning=(None,'末尾が途中で切れた座標列です。') if incomplete else extract('AREA BOUNDED BY '+ ' TO '.join(m.group() for m in c), bounded_chain=True)
+                if not shape and len(c)>=2:
+                    shape={'referenceLines':[[coord(m) for m in c]]}
+                    warning=(warning or '境界未確定')+' 記載順の座標線のみ表示（塗りつぶしなし）。'
+                results.append((shape,warning))
+            merged,warning=combine_polygons(results)
+            if merged:
+                if len(merged['geometry']['coordinates'])==1:
+                    merged['geometry']={'type':'Polygon','coordinates':merged['geometry']['coordinates'][0]}
+                return merged,warning
     # One unambiguous centre and one radius with an explicit unit.
     radius=re.search(r'\b(?:WI|WITHIN)\s+(\d+(?:\.\d+)?)\s*(NM|N M|KM|METERS?|M)\s+(?:RADIUS\s+)?(?:OF|CENT(?:ER|RE)(?:D)?\s+(?:ON|AT))\s*',text)
     if not radius:radius=re.search(r'\b(?:RADIUS\s+(?:OF\s+)?)(\d+(?:\.\d+)?)\s*(NM|N M|KM|METERS?|M)\b',text)

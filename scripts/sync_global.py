@@ -79,16 +79,16 @@ def sync(state_path,output):
     state=json.loads(state_path.read_text()) if state_path.exists() else dict(version=1,records={},baselineAttempts={},baselineSuccess={})
     now=date(utcnow())
     # Parser updates can improve saved geometry without any additional FAA call.
-    reparsed=state.get('parserVersion')!='inclusive-notam-v8'
+    reparsed=state.get('parserVersion')!='inclusive-notam-v9'
     state['records']={k:f for k,f in state['records'].items() if classify_notam(f['properties'].get('text',''),f['properties'].get('qcode',''),f['properties'].get('feedClassification') or f['properties'].get('classification',''))}
-    state['parserVersion']='inclusive-notam-v8'
+    state['parserVersion']='inclusive-notam-v9'
     for f in state['records'].values():
         props=f['properties']
         props.update(layer='NOTAM',criticalReasons=classify_notam(props.get('text',''),props.get('qcode',''),props.get('feedClassification') or props.get('classification','')),altitude=altitude(props.get('text',''),props.get('lower'),props.get('upper'),props.get('qline','')))
         if props.get('accuracy') not in ('reference-point','qline-envelope','text-circle','text-boundary',None):continue
         shape,warning=extract(props.get('originalText') or props.get('text',''))
         if not shape and props.get('accuracy') in ('text-circle','text-boundary'):
-            f['geometry']=None;props.pop('radius_m',None);props.pop('accuracy',None)
+            f['geometry']=None;props.pop('radius_m',None);props.pop('accuracy',None);props.pop('referenceLines',None)
             props['unplottedReason']=warning or '本文の境界を確定できません。'
             props['textGeometryWarning']=props['unplottedReason'];reparsed=True
         if shape and 'circle' in shape:
@@ -96,7 +96,10 @@ def sync(state_path,output):
             props.update(radius_m=c['radius']*{'NM':1852,'KM':1000,'M':1}[c['unit']],accuracy='text-circle');reparsed=True
         elif shape and 'geometry' in shape:
             f['geometry']=shape['geometry'];props['accuracy']='text-boundary';props.pop('radius_m',None);reparsed=True
-        if shape:props.pop('unplottedReason',None);props.pop('textGeometryWarning',None)
+        if shape:
+            props.pop('unplottedReason',None);props.pop('textGeometryWarning',None);props.pop('referenceLines',None)
+            if shape.get('referenceLines'):props['referenceLines']=shape['referenceLines']
+            if warning:props['textGeometryWarning']=warning
     if reparsed:write_json(state_path,state);publish(state,output,'error' if state.get('error') else 'ok',state.get('error'))
     if state.get('lastAttempt') and (now-date(state['lastAttempt'])).total_seconds()<1800:
         print('FAA_GLOBAL_COOLDOWN');return int(state.get('error') is not None)

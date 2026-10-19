@@ -10,7 +10,7 @@ const report={generatedAt:new Date().toISOString(),state:rows.length>1&&rows.eve
 if(report.faaCoverageGap)report.state='要確認';
 if(process.env.GITHUB_STEP_SUMMARY)fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,`\n## ALTA 取得チェック: ${report.state}\n\n`+rows.map(r=>`- ${r.name}: ${r.status}; 最終成功 ${r.lastSuccess||'なし'}`).join('\n')+'\n');
 const password=process.env.ALTA_ADMIN_PASSWORD||'';
-if(password.length<8){fs.writeFileSync('web/operations-status.json',JSON.stringify({enabled:false}));console.log('Private status pending: set ALTA_ADMIN_PASSWORD (8+ characters).');process.exit(0)}
+if(password.length<7){fs.writeFileSync('web/operations-status.json',JSON.stringify({enabled:false}));console.log('Private status pending: set ALTA_ADMIN_PASSWORD (7+ characters).');process.exit(0)}
 const salt=webcrypto.getRandomValues(new Uint8Array(16)),iv=webcrypto.getRandomValues(new Uint8Array(12)),iterations=600000;
 const material=await subtle.importKey('raw',new TextEncoder().encode(password),'PBKDF2',false,['deriveKey']);
 const key=await subtle.deriveKey({name:'PBKDF2',hash:'SHA-256',salt,iterations},material,{name:'AES-GCM',length:256},false,['encrypt']);

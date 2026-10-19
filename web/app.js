@@ -27,7 +27,7 @@ const expired=p=>p.validTo&&p.validTo!=='PERM'&&Date.parse(p.validTo)<=clock();
 const issuedAt=p=>{const n=Date.parse(p.issuedISO||p.issued||p.issueDate||'');return Number.isFinite(n)?n:null;};
 const recent=p=>{const t=issuedAt(p);return t!==null&&t<=clock()&&clock()-t<=10800000;};
 const uncertain=p=>!p.validFrom||(!p.validTo&&p.validTo!=='PERM')||/unparsed|unknown|invalid/.test(p.timeStatus||'')||Boolean(p.schedule&&!/^H24$/i.test(p.schedule.trim()));
-const baseColor=f=>f.properties.layer==='NAVWARN'?'#ffad42':'#fb5267';
+const baseColor=f=>f.properties.layer==='NAVWARN'?'#bf9c70':'#b87983';
 function viewMatch(f){if(region==='all')return true;if(region==='range')return AltaSpatial.intersects(f,rangeBox);if(region==='custom')return selectedCountries.has(f.properties.country);const c=catalog.find(c=>c.code===f.properties.country);return (c&&c.code!=='ZZ'?AltaMonitor.countryRegion(c)===region:AltaMonitor.inBox(f,AltaMonitor.regions[region].box));}
 const countryName=c=>catalog.find(x=>x.code===c)?.name||c;
 const map=typeof L!=='undefined'?L.map('map',{worldCopyJump:false,zoomControl:false,preferCanvas:true}).setView([28,125],3):null;

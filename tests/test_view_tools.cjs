@@ -7,7 +7,9 @@ const links=[{},{}];const context={sessionStorage:{getItem:()=>JSON.stringify(st
 console.log('Activity categories, raw text preservation, session view and safe help return passed');
 const app=fs.readFileSync('web/app.js','utf8');const start=app.indexOf('let previewId=null;'),end=app.indexOf('function draw(f,anchor)',start);
 const features=[{id:'a',properties:{text:'MISSILE FIRING',layer:'NOTAM'}},{id:'b',properties:{text:'RESTRICTED AREA',layer:'NAVWARN'}}];const painted=new Map(features.map(f=>[f.id,{setStyle(s){this.style=s},bringToFront(){this.front=true}}]));
-const cx={AltaView:V,selectedAlerts:new Set(),activeId:null,baseColor:f=>f.properties.layer==='NAVWARN'?'orange':'red',visible:features,layers:painted};vm.createContext(cx);vm.runInContext(app.slice(start,end),cx);cx.previewFeature(features[0]);assert.equal(painted.get('a').style.color,'#fff36b');cx.previewFeature(features[1]);assert.equal(painted.get('a').style.color,'red');assert.equal(painted.get('a').style.weight,3);cx.clearPreview();assert.equal(painted.get('b').style.color,'orange');assert.equal(painted.get('b').style.weight,2);
+const cx={AltaView:V,selectedAlerts:new Set(),activeId:null,baseColor:f=>f.properties.layer==='NAVWARN'?'orange':'red',visible:features,layers:painted};vm.createContext(cx);vm.runInContext(app.slice(start,end),cx);cx.previewFeature(features[0]);assert.equal(painted.get('a').style.color,'#64ded4');cx.previewFeature(features[1]);assert.equal(painted.get('a').style.color,'#ff3456');assert.equal(painted.get('a').style.weight,2);cx.clearPreview();assert.equal(painted.get('b').style.color,'orange');assert.equal(painted.get('b').style.weight,2);
 console.log('Hover candidate highlight and restored hazard emphasis passed');
 
-cx.activeId='b';cx.clearPreview();assert.equal(cx.alertStyle(features[1]).color,'#fff36b');assert.match(app,/b.onclick=\(\)=>focusFeature\(f\)/);
+cx.activeId='b';cx.clearPreview();assert.equal(cx.alertStyle(features[1]).color,'#64ded4');assert.match(app,/b.onclick=\(\)=>focusFeature\(f\)/);
+
+cx.activeId=null;assert.equal(cx.alertStyle({id:'sea',properties:{text:'MISSILE FIRING',layer:'NAVWARN'}}).color,'#ff793f');assert.equal(cx.alertStyle(features[0]).weight,cx.alertStyle(features[1]).weight);

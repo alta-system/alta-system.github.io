@@ -160,7 +160,7 @@ body.map-page{grid-template-rows:auto auto auto minmax(0,1fr)}
 #original-body{padding:14px;overflow:auto!important}#original-body #original-text,#original-body #translation-body{padding:10px 0;border:0;white-space:pre-wrap;overflow-wrap:anywhere;max-height:none}
 #original-source{display:block;color:#9ebcc8;font-size:11px}.translation-panel{border-top:1px solid #406775;padding-top:12px}.translation-panel h3{font-size:14px;color:#9ce5d4}.translation-panel button,.translation-panel a,#range-reopen{display:inline-block;background:#163d45;border:1px solid #468d8c;color:#d6fff3;padding:8px;border-radius:5px;font-size:12px;margin:5px 0;cursor:pointer}.translation-panel p{font-size:11px;color:#a6bcc5}
 .category-controls summary{font-weight:650;color:#82e8d3!important;background:#122e37;border-radius:4px;padding:8px!important}.category-controls .toggle{font-size:12px;margin:9px 0}
-#overlap-list button:hover,#overlap-list button:focus{border-color:#fff36b;color:#fff8a9;background:#383822}.map-control-dock #range-reopen{margin:0;box-shadow:0 3px 12px #0004}
+#overlap-list button:hover,#overlap-list button:focus{border-color:#64ded4;color:#b9f4ec;background:#173b3c}.map-control-dock #range-reopen{margin:0;box-shadow:0 3px 12px #0004}
 @media(max-width:640px){.map-page .detail-panel{top:6px;bottom:6px}.show-original #original-body{grid-column:1;grid-row:2}.map-page .map-shell{border-width:1px 1px 3px}}
 
 .sidebar-options .category-controls>summary{padding:9px 10px!important;border:1px solid #47766f;background:#18383b;color:#b5e8da!important;border-radius:5px;font-size:12px}.category-controls .toggle{background:transparent;border:0;padding:0;font-weight:400}

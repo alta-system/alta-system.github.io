@@ -39,6 +39,7 @@ jobs:
         run: |
           node tests/test_refresh.cjs
           node tests/test_monitor.cjs
+          node tests/test_view_tools.cjs
           node tests/test_range_drag.cjs
           node tests/test_spatial.cjs
           node tests/test_map_hover.cjs
@@ -125,3 +126,4 @@ jobs:
             echo "::error::$count country source(s) failed; previous valid data and failure status were published."
             exit 1
           fi
+

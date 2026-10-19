@@ -1,0 +1,2 @@
+/* Restore the same map URL without accepting off-site redirects. */
+try{const s=JSON.parse(sessionStorage.getItem('alta-view-v1'));if(s?.version===1&&typeof s.url==='string'){const u=new URL(s.url,location.href);const mapURL=new URL('./',location.href);if(u.origin===location.origin&&(u.pathname===mapURL.pathname||u.pathname===mapURL.pathname+'index.html'))document.querySelectorAll('[data-map-return]').forEach(a=>a.href=u.href);}}catch{}

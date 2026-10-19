@@ -21,7 +21,8 @@ def extract(value):
     text=re.sub(r'\s+',' ',str(value).upper())
     # Restrict interpretation to E) when a full ICAO message is supplied.
     section=re.search(r'(?:^|\s)E\)\s*',text)
-    if section:text=re.split(r'\s+F\)',text[section.end():],maxsplit=1)[0]
+    if section and (section.start()==0 or re.search(r'\bNOTAM[NRC]\b|\bQ\)',text[:section.start()])):
+        text=re.split(r'\s+F\)\s*(?!\d{4,6}(?:\.\d+)?[NS])',text[section.end():],maxsplit=1)[0]
     # Normalize explicit hemisphere-qualified degrees/minutes/seconds only.
     def packed(m):
         d,mi,se,h=m.groups();width=2 if h in 'NS' else 3
@@ -50,7 +51,7 @@ def extract(value):
             return {'geometry':{'type':'MultiPolygon','coordinates':[shape['geometry']['coordinates'] for shape,w in shapes]}},None
         return None,'複数区域の一部の境界を確定できません。'
     # Explicit AREA 1/AREA 2 chains stay separate. Never bridge disjoint zones.
-    blocks=re.split(r'\b(?:AREA|ZONE)\s+[A-Z0-9]+\s*[:.)]\s*',text)
+    blocks=re.split(r'\b(?:AREA|ZONE)\s+[A-Z0-9]+\s*(?:[:.)]\s*|(?=\d{4,6}(?:\.\d+)?[NS]))',text)
     if len(blocks)>2:
         shapes=[extract('AREA BOUNDED BY '+b) for b in blocks[1:]]
         if all(s and 'geometry' in s for s,w in shapes):
@@ -60,7 +61,8 @@ def extract(value):
     if not matches:return None,None
     try:points=[coord(m) for m in matches]
     except ValueError:return None,'本文の座標形式・値を解釈できません。'
-    complex_path=re.search(r'\b(ARC|SECTOR|FAN[ -]?SHAPED|SEMICIRCLE|SEMI[ -]CIRCLE|CLOCKWISE|ANTICLOCKWISE|COUNTERCLOCKWISE|BORDER|COASTLINE|ALONG|EXCLUDING|EXCEPT)\b|\b\d{1,3}\s*(?:DEG|DEGREES)\b',text)
+    geometry_text=re.sub(r'\(APRX\s+[^()]*\)', '', text)
+    complex_path=re.search(r'\b(ARC|SECTOR|FAN[ -]?SHAPED|SEMICIRCLE|SEMI[ -]CIRCLE|CLOCKWISE|ANTICLOCKWISE|COUNTERCLOCKWISE|BORDER|COASTLINE|ALONG|EXCLUDING|EXCEPT)\b|\b\d{1,3}\s*(?:DEG|DEGREES)\b',geometry_text)
     if complex_path:return None,'円弧・沿岸・除外区域等を含む本文は自動で境界を確定しません。'
     # One unambiguous centre and one radius with an explicit unit.
     radius=re.search(r'\b(?:WI|WITHIN)\s+(\d+(?:\.\d+)?)\s*(NM|N M|KM|METERS?|M)\s+(?:RADIUS\s+)?(?:OF|CENT(?:ER|RE)(?:D)?\s+(?:ON|AT))\s*',text)
@@ -70,9 +72,9 @@ def extract(value):
         unit=radius[2].replace(' ','');unit='M' if unit.startswith('METER') else unit
         return {'circle':{'center':points[0],'radius':float(radius[1]),'unit':unit}},None
     # Only a stated, straight-line boundary with a contiguous coordinate chain.
-    bounded=re.search(r'\b(?:BOUNDED BY|BOUND BY|BOUNDARY DEFINED BY|AREA DEFINED BY|AREA DEFINED AS|WI AREA|WITHIN AREA|JOINING THE POINTS|FLW COORD|FOLLOWING COORDINATES)\b',text)
+    bounded=re.search(r'\b(?:BOUNDED BY|BOUND BY|BOUNDARY DEFINED BY|AREA DEFINED BY|AREA DEFINED AS|WI AREA|WITHIN AREA|JOINING THE POINTS|FLW COORDS?|FOLLOWING COORDINATES|LATERAL LIMIT AREA FORMED BY THE UNION OF THE (?:FLW|FOLLOWING) POINTS)\b',text)
     if bounded and len(points)>=3:
-        if any(not re.fullmatch(r'[\s,;:/\-]*(?:(?:TO|AND|PSN)\s*)?',text[a.end():b.start()]) for a,b in zip(matches,matches[1:])):
+        if any(not re.fullmatch(r'[\s,;:/\-]*(?:(?:TO|AND|PSN)\s*)?(?:[A-Z]\s*\)\s*)?',text[a.end():b.start()]) for a,b in zip(matches,matches[1:])):
             return None,'複数の区域または接続が不明な座標列です。'
         if points[-1]!=points[0]:points.append(points[0])
         try:
@@ -95,7 +97,8 @@ def reference_points(value):
     text=re.sub(r'\s+',' ',str(value).upper())
     # Restrict interpretation to E) when a full ICAO message is supplied.
     section=re.search(r'(?:^|\s)E\)\s*',text)
-    if section:text=re.split(r'\s+F\)',text[section.end():],maxsplit=1)[0]
+    if section and (section.start()==0 or re.search(r'\bNOTAM[NRC]\b|\bQ\)',text[:section.start()])):
+        text=re.split(r'\s+F\)\s*(?!\d{4,6}(?:\.\d+)?[NS])',text[section.end():],maxsplit=1)[0]
     # Normalize explicit hemisphere-qualified degrees/minutes/seconds only.
     def packed(m):
         d,mi,se,h=m.groups();width=2 if h in 'NS' else 3
@@ -109,3 +112,4 @@ def reference_points(value):
             if p not in points:points.append(p)
         except ValueError:continue
     return points
+

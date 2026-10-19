@@ -79,9 +79,9 @@ def sync(state_path,output):
     state=json.loads(state_path.read_text()) if state_path.exists() else dict(version=1,records={},baselineAttempts={},baselineSuccess={})
     now=date(utcnow())
     # Parser updates can improve saved geometry without any additional FAA call.
-    reparsed=state.get('parserVersion')!='inclusive-notam-v6'
+    reparsed=state.get('parserVersion')!='inclusive-notam-v7'
     state['records']={k:f for k,f in state['records'].items() if classify_notam(f['properties'].get('text',''),f['properties'].get('qcode',''),f['properties'].get('feedClassification') or f['properties'].get('classification',''))}
-    state['parserVersion']='inclusive-notam-v6'
+    state['parserVersion']='inclusive-notam-v7'
     for f in state['records'].values():
         props=f['properties']
         props.update(layer='NOTAM',criticalReasons=classify_notam(props.get('text',''),props.get('qcode',''),props.get('feedClassification') or props.get('classification','')),altitude=altitude(props.get('text',''),props.get('lower'),props.get('upper'),props.get('qline','')))
@@ -95,7 +95,7 @@ def sync(state_path,output):
             c=shape['circle'];f['geometry']={'type':'Point','coordinates':c['center']}
             props.update(radius_m=c['radius']*{'NM':1852,'KM':1000,'M':1}[c['unit']],accuracy='text-circle');reparsed=True
         elif shape and 'geometry' in shape:
-            f['geometry']=shape['geometry'];props['accuracy']='text-boundary';reparsed=True
+            f['geometry']=shape['geometry'];props['accuracy']='text-boundary';props.pop('radius_m',None);reparsed=True
         if shape:props.pop('unplottedReason',None);props.pop('textGeometryWarning',None)
     if reparsed:write_json(state_path,state);publish(state,output,'error' if state.get('error') else 'ok',state.get('error'))
     if state.get('lastAttempt') and (now-date(state['lastAttempt'])).total_seconds()<1800:
@@ -161,3 +161,4 @@ if __name__=='__main__':
     parser=argparse.ArgumentParser();parser.add_argument('--report',default='');args=parser.parse_args()
     errors=sync(ROOT/'state/faa-sync.json',ROOT/'web/production')
     if args.report:Path(args.report).write_text(str(errors))
+

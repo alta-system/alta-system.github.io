@@ -1,7 +1,7 @@
 'use strict';
 const form=document.querySelector('#ops-form'),message=document.querySelector('#ops-message'),out=document.querySelector('#ops-result');
 form.onsubmit=async e=>{e.preventDefault();form.querySelector('button').disabled=true;out.hidden=true;out.replaceChildren();message.textContent='確認中…';try{
- const r=await fetch('operations-status.json',{cache:'no-store'});if(!r.ok)throw Error();const c=await r.json();if(!c.enabled){message.textContent='管理用 Secret「ALTA_ADMIN_PASSWORD」（16文字以上）の登録と次回公開を待っています。';return;}
+ const r=await fetch('operations-status.json',{cache:'no-store'});if(!r.ok)throw Error();const c=await r.json();if(!c.enabled){message.textContent='確認用パスワードの設定と次回の公開を待っています。';return;}
  const bytes=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));const input=document.querySelector('#ops-password'),password=input.value;input.value='';
  const raw=await crypto.subtle.importKey('raw',new TextEncoder().encode(password),'PBKDF2',false,['deriveKey']);const key=await crypto.subtle.deriveKey({name:'PBKDF2',hash:'SHA-256',salt:bytes(c.salt),iterations:c.iterations},raw,{name:'AES-GCM',length:256},false,['decrypt']);const report=JSON.parse(new TextDecoder().decode(await crypto.subtle.decrypt({name:'AES-GCM',iv:bytes(c.iv)},key,bytes(c.ciphertext))));
  const el=(tag,text)=>{const n=document.createElement(tag);n.textContent=text;return n},time=s=>s?new Date(s).toLocaleString('ja-JP'):'未取得';

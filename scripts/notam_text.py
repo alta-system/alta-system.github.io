@@ -17,8 +17,8 @@ def coord(match):
     a,b,c,d=match.groups()
     return position([angle(c,d,3),angle(a,b,2)])
 
-def extract(value):
-    text=re.sub(r'\s+',' ',str(value).upper())
+def extract(value, bounded_chain=False):
+    text=re.sub(r'\s+',' ',str(value).upper()).translate(str.maketrans({'–':'-','—':'-','−':'-'}))
     # Restrict interpretation to E) when a full ICAO message is supplied.
     section=re.search(r'(?:^|\s)E\)\s*',text)
     if section and (section.start()==0 or re.search(r'\bNOTAM[NRC]\b|\bQ\)',text[:section.start()])):
@@ -64,6 +64,20 @@ def extract(value):
     geometry_text=re.sub(r'\(APRX\s+[^()]*\)', '', text)
     complex_path=re.search(r'\b(ARC|SECTOR|FAN[ -]?SHAPED|SEMICIRCLE|SEMI[ -]CIRCLE|CLOCKWISE|ANTICLOCKWISE|COUNTERCLOCKWISE|BORDER|COASTLINE|ALONG|EXCLUDING|EXCEPT)\b|\b\d{1,3}\s*(?:DEG|DEGREES)\b',geometry_text)
     if complex_path:return None,'円弧・沿岸・除外区域等を含む本文は自動で境界を確定しません。'
+    # Explicit hyphen-connected vertices define separate straight-line areas.
+    # Never bridge prose, dates, labels, or separate chains; routes are not areas.
+    if not re.search(r'\b(?:ROUTE|TRACK|CORRIDOR|CENTERLINE|CENTRELINE)\b',text):
+        chains=[];chain=[matches[0]]
+        for a,b in zip(matches,matches[1:]):
+            if re.fullmatch(r'\s*-\s*',text[a.end():b.start()]):chain.append(b)
+            else:
+                chains.append(chain);chain=[b]
+        chains.append(chain)
+        if all(len(c)>=3 for c in chains) and any(len(c)>1 for c in chains) and not bounded_chain:
+            shapes=[extract('AREA BOUNDED BY '+ ' TO '.join(m.group() for m in c), bounded_chain=True)[0] for c in chains]
+            if all(s and 'geometry' in s for s in shapes):
+                if len(shapes)==1:return shapes[0],None
+                return {'geometry':{'type':'MultiPolygon','coordinates':[s['geometry']['coordinates'] for s in shapes]}},None
     # One unambiguous centre and one radius with an explicit unit.
     radius=re.search(r'\b(?:WI|WITHIN)\s+(\d+(?:\.\d+)?)\s*(NM|N M|KM|METERS?|M)\s+(?:RADIUS\s+)?(?:OF|CENT(?:ER|RE)(?:D)?\s+(?:ON|AT))\s*',text)
     if not radius:radius=re.search(r'\b(?:RADIUS\s+(?:OF\s+)?)(\d+(?:\.\d+)?)\s*(NM|N M|KM|METERS?|M)\b',text)
@@ -94,7 +108,7 @@ def extract(value):
 
 def reference_points(value):
     """Only reported coordinates; no boundary or radius is inferred."""
-    text=re.sub(r'\s+',' ',str(value).upper())
+    text=re.sub(r'\s+',' ',str(value).upper()).translate(str.maketrans({'–':'-','—':'-','−':'-'}))
     # Restrict interpretation to E) when a full ICAO message is supplied.
     section=re.search(r'(?:^|\s)E\)\s*',text)
     if section and (section.start()==0 or re.search(r'\bNOTAM[NRC]\b|\bQ\)',text[:section.start()])):

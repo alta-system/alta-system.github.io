@@ -79,9 +79,9 @@ def sync(state_path,output):
     state=json.loads(state_path.read_text()) if state_path.exists() else dict(version=1,records={},baselineAttempts={},baselineSuccess={})
     now=date(utcnow())
     # Parser updates can improve saved geometry without any additional FAA call.
-    reparsed=state.get('parserVersion')!='inclusive-notam-v7'
+    reparsed=state.get('parserVersion')!='inclusive-notam-v8'
     state['records']={k:f for k,f in state['records'].items() if classify_notam(f['properties'].get('text',''),f['properties'].get('qcode',''),f['properties'].get('feedClassification') or f['properties'].get('classification',''))}
-    state['parserVersion']='inclusive-notam-v7'
+    state['parserVersion']='inclusive-notam-v8'
     for f in state['records'].values():
         props=f['properties']
         props.update(layer='NOTAM',criticalReasons=classify_notam(props.get('text',''),props.get('qcode',''),props.get('feedClassification') or props.get('classification','')),altitude=altitude(props.get('text',''),props.get('lower'),props.get('upper'),props.get('qline','')))

@@ -20,3 +20,13 @@ class TextRegressionTests(unittest.TestCase):
   self.assertEqual(s['circle']['radius'],1.25);self.assertLess(s['circle']['center'][1],0)
  def test_sector_still_rejected(self):
   self.assertIsNone(extract('SECTOR WI 1.25NM OF 062004S1430635E BTN 030 DEG AND 050 DEG')[0])
+
+ def test_plain_dash_chain(self):
+  s,w=extract('MISSILE FIRING 3500N14000E - 3600N14000E - 3600N14100E')
+  self.assertEqual(s['geometry']['type'],'Polygon')
+ def test_disconnected_dash_chains(self):
+  s,w=extract('FIRING 3500N14000E - 3600N14000E - 3600N14100E. SECOND 3700N14200E – 3800N14200E – 3800N14300E')
+  self.assertEqual(s['geometry']['type'],'MultiPolygon');self.assertEqual(len(s['geometry']['coordinates']),2)
+ def test_route_not_closed_as_area(self):
+  s,w=extract('ROUTE 3500N14000E - 3600N14000E - 3600N14100E')
+  self.assertIsNone(s)

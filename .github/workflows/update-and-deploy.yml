@@ -40,6 +40,7 @@ jobs:
           node tests/test_refresh.cjs
           node tests/test_monitor.cjs
           node tests/test_view_tools.cjs
+          node tests/test_operations.cjs
           node tests/test_range_drag.cjs
           node tests/test_spatial.cjs
           node tests/test_map_hover.cjs
@@ -73,6 +74,10 @@ jobs:
         env:
           ALTA_VIEW_PASSWORD: ${{ secrets.ALTA_VIEW_PASSWORD }}
         run: python scripts/build_access.py
+      - name: Build encrypted operations status
+        env:
+          ALTA_ADMIN_PASSWORD: ${{ secrets.ALTA_ADMIN_PASSWORD }}
+        run: node scripts/build_operations.mjs
       # GITHUB_TOKEN commits do not trigger another workflow. Deploy in this same run.
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v4

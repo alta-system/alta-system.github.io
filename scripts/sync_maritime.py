@@ -10,6 +10,7 @@ from hazard_rules import classify,altitude
 from maritime_time import times
 from notam_text import reference_points,extract
 URL='https://msi.nga.mil/api/publications/smaps'
+# China MSA direct requests are intentionally disabled at the owner's request.
 AREAS=('4','12','A','P','C')
 VERSION='smaps-v1'
 SOURCE='NGA Maritime Safety Information — Navigational Warnings'
@@ -83,3 +84,4 @@ if __name__=='__main__':
     result+=sync_navarea9(folder/'pk_navarea9.json')
     combine([folder/'nga.json',folder/'jcg_navarea11.json',folder/'jcg_japannw.json',folder/'jcg_navtex.json',folder/'pk_navarea9.json'],folder/'index.json')
     Path('/tmp/maritime-errors').write_text(str(result))
+

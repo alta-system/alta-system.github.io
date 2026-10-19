@@ -1,0 +1,10 @@
+'use strict';
+const form=document.querySelector('#ops-form'),message=document.querySelector('#ops-message'),out=document.querySelector('#ops-result');
+form.onsubmit=async e=>{e.preventDefault();form.querySelector('button').disabled=true;out.hidden=true;out.replaceChildren();message.textContent='確認中…';try{
+ const r=await fetch('operations-status.json',{cache:'no-store'});if(!r.ok)throw Error();const c=await r.json();if(!c.enabled){message.textContent='管理用 Secret「ALTA_ADMIN_PASSWORD」（16文字以上）の登録と次回公開を待っています。';return;}
+ const bytes=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));const input=document.querySelector('#ops-password'),password=input.value;input.value='';
+ const raw=await crypto.subtle.importKey('raw',new TextEncoder().encode(password),'PBKDF2',false,['deriveKey']);const key=await crypto.subtle.deriveKey({name:'PBKDF2',hash:'SHA-256',salt:bytes(c.salt),iterations:c.iterations},raw,{name:'AES-GCM',length:256},false,['decrypt']);const report=JSON.parse(new TextDecoder().decode(await crypto.subtle.decrypt({name:'AES-GCM',iv:bytes(c.iv)},key,bytes(c.ciphertext))));
+ const el=(tag,text)=>{const n=document.createElement(tag);n.textContent=text;return n},time=s=>s?new Date(s).toLocaleString('ja-JP'):'未取得';
+ const stale=Date.now()-Date.parse(report.generatedAt)>70*60000;out.append(el('h2',stale?'要確認：公開データの更新が遅れています':report.state),el('p','確認データ作成：'+time(report.generatedAt)));
+ for(const s of report.sources){const card=el('article','');card.append(el('h3',s.name+' / '+s.status),el('p','最終試行：'+time(s.lastAttempt)+' ／ 最終成功：'+time(s.lastSuccess)));if(s.error)card.append(el('p',s.error));out.append(card)}out.append(el('p',report.chinaMSA));const link=el('a','GitHubの実行結果を確認 ↗');link.href=report.runURL;link.rel='noopener noreferrer';link.target='_blank';out.append(link);out.hidden=false;message.textContent='取得状況を表示しました。';
+ }catch{message.textContent='開けませんでした。パスワードまたは通信状況を確認してください。';}finally{form.querySelector('button').disabled=false;}};

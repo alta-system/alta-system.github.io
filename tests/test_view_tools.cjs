@@ -15,6 +15,9 @@ cx.activeId='b';cx.clearPreview();assert.equal(cx.alertStyle(features[1]).color,
 cx.activeId=null;assert.equal(cx.alertStyle({id:'sea',properties:{text:'MISSILE FIRING',layer:'NAVWARN'}}).color,'orange');assert.equal(cx.alertStyle(features[0]).weight,cx.alertStyle(features[1]).weight);
 
 cx.clock=()=>Date.parse('2026-10-20T03:00:00Z');const live={id:'live',properties:{validFrom:'2026-10-20T02:00:00Z',validTo:'2026-10-20T04:00:00Z'}};
-assert.equal(cx.alertStyle(live).fill,true);assert.equal(cx.alertStyle({...live,properties:{...live.properties,validFrom:'2026-10-20T03:30:00Z'}}).fill,false);assert.equal(cx.alertStyle({...live,properties:{...live.properties,accuracy:'text-trace'}}).fill,false);
+assert.equal(cx.alertStyle(live).fill,false);assert.equal(cx.alertStyle(live).fillOpacity,0);assert.equal(cx.alertStyle(live).dashArray,null);assert.equal(cx.alertStyle({...live,properties:{...live.properties,validFrom:'2026-10-20T03:30:00Z'}}).fill,false);assert.equal(cx.alertStyle({...live,properties:{...live.properties,accuracy:'text-trace'}}).fill,false);
 
 assert.equal(V.category({text:'RWY LOW VISIBILITY DUE FOG'}),'weather');assert.equal(V.category({text:'MILITARY EXERCISE SUBJECT TO WEATHER'}),'exercise');
+
+for(const properties of [{...live.properties,validFrom:"2026-10-20T03:30:00Z"},{},{...live.properties,schedule:"DLY 0400-0500"}]){const style=cx.alertStyle({id:"inactive",properties});assert.equal(style.fill,false);assert.equal(style.fillOpacity,0);assert.equal(style.dashArray,"6 5");}
+assert.equal(cx.alertStyle({...live,properties:{...live.properties,accuracy:"qline-envelope"}}).dashArray,null);

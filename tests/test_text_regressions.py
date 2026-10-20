@@ -74,3 +74,35 @@ class TextRegressionTests(unittest.TestCase):
    self.assertEqual(len(saved['properties']['referenceLines']),1)
    self.assertNotIn('radius_m',saved['properties'])
    self.assertIn('区域4',saved['properties']['textGeometryWarning'])
+
+ def test_airport_offsets_do_not_block_explicit_polygon(self):
+  shape,warning=extract('AREA DEFINED AS 350000N1400000E (3NM W ABC) TO 360000N1400000E (2NM N ABC) TO 360000N1410000E (3NM E ABC) TO POINT OF ORIGIN')
+  self.assertEqual(shape['geometry']['type'],'Polygon')
+  self.assertEqual(shape['geometry']['coordinates'][0],[[140,35],[140,36],[141,36],[140,35]])
+ def test_operational_except_after_vertices_is_not_a_geometry_exclusion(self):
+  shape,warning=extract('AREA BOUNDED BY 3500N14000E - 3600N14000E - 3600N14100E. EXCEPT OPERATORS AUTHORISED BY ATC')
+  self.assertEqual(shape['geometry']['type'],'Polygon')
+ def test_two_explicit_circles_remain_two_circles(self):
+  shape,warning=extract('WITHIN 5NM RADIUS OF 350000N1400000E AND WITHIN 2NM RADIUS OF 360000N1410000E')
+  self.assertEqual(shape['circle']['center'],[140,35]);self.assertEqual(shape['circle']['radius'],5)
+  self.assertEqual(shape['additionalCircles'],[dict(center=[141,36],radius_m=3704)])
+ def test_independent_named_faa_definitions(self):
+  shape,warning=extract('AIRSPACE WI AN AREA DEFINED AS (ALPHA) 3500N14000E TO 3600N14000E TO 3600N14100E TO POINT OF ORIGIN AND WI AN AREA DEFINED AS (BRAVO) 3700N14200E TO 3800N14200E TO 3800N14300E TO POINT OF ORIGIN')
+  self.assertEqual(shape['geometry']['type'],'MultiPolygon');self.assertEqual(len(shape['geometry']['coordinates']),2)
+
+ def test_metres_radius_above_one_thousand(self):
+  shape,warning=extract('WI 2500M RADIUS OF 350000N1400000E')
+  self.assertEqual(shape['circle']['radius'],2500);self.assertEqual(shape['circle']['unit'],'M')
+ def test_explicit_same_radius_for_each_centre(self):
+  shape,warning=extract('WI 5NM RADIUS OF EACH FOLLOWING POSITIONS 350000N1400000E AND 360000N1410000E')
+  self.assertEqual(shape['circle']['radius'],5);self.assertEqual(shape['additionalCircles'][0]['radius_m'],9260)
+
+ def test_reparse_maritime_cache_preserves_original_and_freshness(self):
+  from notam_text import refresh_shapes
+  text='WITHIN 5NM RADIUS OF 350000N1400000E AND WITHIN 2NM RADIUS OF 360000N1410000E'
+  feed=dict(features=[],unplotted=[dict(id='TEST:1',originalText=text,text=text)],metadata=dict(lastSuccess='2026-10-01T00:00:00Z'))
+  self.assertTrue(refresh_shapes(feed));self.assertEqual(len(feed['features']),1);self.assertEqual(feed['unplotted'],[])
+  self.assertEqual(feed['features'][0]['properties']['originalText'],text)
+  self.assertEqual(feed['metadata']['lastSuccess'],'2026-10-01T00:00:00Z')
+  self.assertEqual(feed['features'][0]['properties']['additionalCircles'][0]['radius_m'],3704)
+  self.assertFalse(refresh_shapes(feed))

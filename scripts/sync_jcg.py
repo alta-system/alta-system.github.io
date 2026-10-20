@@ -11,7 +11,7 @@ from pathlib import Path
 from urllib.parse import urlencode
 from urllib.request import Request,build_opener
 from update_airspace import ROOT,NoRedirect,write_json,utcnow,date,polygon_geometry
-from notam_text import reference_points,extract,angle
+from notam_text import refresh_shapes,reference_points,extract,angle
 from hazard_rules import classify,altitude
 from maritime_time import times
 BASE='https://www1.kaiho.mlit.go.jp/TUHO/keiho/'
@@ -74,12 +74,13 @@ def build(rows,texts,kind,stamp):
         props.update(times(text,props.get('issued')))
         if props.get('validTo') and date(props['validTo'])<=date(stamp):continue
         g=None
-        if shape and 'geometry' in shape:g=shape['geometry'];props['accuracy']='text-boundary'
+        if shape and 'geometry' in shape:g=shape['geometry'];props['accuracy']='text-trace' if shape['geometry']['type']=='MultiPoint' else 'text-boundary'
         elif shape and 'circle' in shape:
             c=shape['circle'];g={'type':'Point','coordinates':c['center']};props.update(accuracy='text-circle',radius_m=c['radius']*{'NM':1852,'KM':1000,'M':1}[c['unit']])
         if g is None:
             points=reference_points(normalize(text))
             if points:g={'type':'MultiPoint','coordinates':points};props.update(accuracy='reference-point',geometryNote='本文の参照座標のみ。境界・半径は未確定。')
+        if shape and shape.get('additionalCircles'):props['additionalCircles']=shape['additionalCircles']
         if shape and shape.get('referenceLines'):props['referenceLines']=shape['referenceLines']
         if warning:props['textGeometryWarning']=warning
         if g:features.append(dict(type='Feature',id=ident,geometry=g,properties=props))
@@ -96,6 +97,7 @@ def fetch(url,form=None):
 
 def sync(kind,path):
     path=Path(path);stamp=utcnow();old=json.loads(path.read_text()) if path.exists() else None
+    if old and refresh_shapes(old,geometry):write_json(path,old)
     if old and old['metadata'].get('lastAttempt') and (date(stamp)-date(old['metadata']['lastAttempt'])).total_seconds()<1800:return int(old['metadata']['status']!='ok')
     try:
         page=fetch(BASE+SOURCES[kind][0]);years=sorted(set(re.findall(r'id="yearlylist_(\d{4})"',page)),reverse=True)

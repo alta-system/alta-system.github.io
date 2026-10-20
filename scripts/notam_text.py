@@ -17,19 +17,26 @@ def coord(match):
     a,b,c,d=match.groups()
     return position([angle(c,d,3),angle(a,b,2)])
 
+def circle_metres(c):
+    return {'center':c['center'],'radius_m':c['radius']*{'NM':1852,'KM':1000,'M':1}[c['unit']]}
+
 def combine_polygons(results):
-    """Preserve independent usable areas; never discard them as a unit."""
-    polygons=[];lines=[];notes=[]
+    """Keep separate source-order polygons, traces and explicit circles."""
+    polygons=[];lines=[];circles=[];extra=[];notes=[]
     for i,(shape,warning) in enumerate(results,1):
         if shape and 'geometry' in shape:
             g=shape['geometry']
-            polygons.extend([g['coordinates']] if g['type']=='Polygon' else g['coordinates'])
-        if shape:lines.extend(shape.get('referenceLines',[]))
-        if shape and 'circle' in shape:notes.append(f'区域{i}: 円の範囲は原文の中心・半径を確認してください。')
+            if g['type'] in ('Polygon','MultiPolygon'):polygons.extend([g['coordinates']] if g['type']=='Polygon' else g['coordinates'])
+        if shape:
+            lines.extend(shape.get('referenceLines',[]));extra.extend(shape.get('additionalCircles',[]))
+            if 'circle' in shape:circles.append(shape['circle'])
         if warning:notes.append(f'区域{i}: {warning}')
-    if not polygons:return None,' / '.join(notes) or '多角形を確定できません。'
-    result={'geometry':{'type':'MultiPolygon','coordinates':polygons}}
+    if polygons:result={'geometry':{'type':'MultiPolygon','coordinates':polygons}};extra=[circle_metres(c) for c in circles]+extra
+    elif circles:result={'circle':circles[0]};extra=[circle_metres(c) for c in circles[1:]]+extra
+    elif lines:result={'geometry':{'type':'MultiPoint','coordinates':[list(p) for p in dict.fromkeys(tuple(p) for line in lines for p in line)]}}
+    else:return None,' / '.join(notes) or '多角形を確定できません。'
     if lines:result['referenceLines']=lines
+    if extra:result['additionalCircles']=extra
     return result,(' / '.join(notes) or None)
 
 def extract(value, bounded_chain=False):
@@ -44,6 +51,14 @@ def extract(value, bounded_chain=False):
         return d.zfill(width)+mi.zfill(2)+(se.zfill(2) if se else '')+h
     text=re.sub(r"(?<![\d.])(\d{1,3})[°:\- ](\d{2}(?:\.\d+)?)(?:[':\- ](\d{2}(?:\.\d+)?))?[\"' ]*([NSEW])\b",packed,text)
     text=re.sub(r'\b([NS])\s*(\d{4}(?:\d{2})?(?:\.\d+)?)\s*([EW])\s*(\d{5}(?:\d{2})?(?:\.\d+)?)\b',lambda m:m[2]+m[1]+' '+m[4]+m[3],text)
+    text=re.sub(r'\((?:APRX\s+)?\d+(?:\.\d+)?\s*(?:NM|KM)\s+[^()]*\)', lambda m:m[0] if PAIR.search(m[0]) or 'RADIUS' in m[0] else '', text)
+    # Independent repeated definitions include FAA's 'WI AN AREA DEFINED AS'.
+    definitions=re.split(r'\b(?:WI\s+AN\s+)?AREA\s+DEFINED\s+AS\b',text)
+    if len(definitions)>2 and not PAIR.search(definitions[0]):
+        return combine_polygons([extract('AREA DEFINED AS '+part) for part in definitions[1:]])
+    circle_parts=re.split(r'\s+AND\s+',text)
+    if len(circle_parts)>1 and all(re.search(r'\bRADIUS\b',part) and PAIR.search(part) for part in circle_parts):
+        return combine_polygons([extract(part) for part in circle_parts])
     # Numbered AIRSPACE boundaries and lettered maritime areas are separate polygons.
     parts=re.split(r'\(\d+\)\s*AIRSPACE\s*:',text)
     if len(parts)>2:
@@ -68,7 +83,7 @@ def extract(value, bounded_chain=False):
     if not matches:return None,None
     try:points=[coord(m) for m in matches]
     except ValueError:return None,'本文の座標形式・値を解釈できません。'
-    geometry_text=re.sub(r'\(APRX\s+[^()]*\)', '', text)
+    geometry_text=re.sub(r'\(APRX\s+[^()]*\)', '', text[:matches[-1].end()])
     complex_path=re.search(r'\b(ARC|SECTOR|FAN[ -]?SHAPED|SEMICIRCLE|SEMI[ -]CIRCLE|CLOCKWISE|ANTICLOCKWISE|COUNTERCLOCKWISE|BORDER|COASTLINE|ALONG|EXCLUDING|EXCEPT)\b|\b\d{1,3}\s*(?:DEG|DEGREES)\b',geometry_text)
     if complex_path:return None,'円弧・沿岸・除外区域等を含む本文は自動で境界を確定しません。'
     # Explicit hyphen-connected vertices define separate straight-line areas.
@@ -92,16 +107,22 @@ def extract(value, bounded_chain=False):
                 results.append((shape,warning))
             merged,warning=combine_polygons(results)
             if merged:
-                if len(merged['geometry']['coordinates'])==1:
+                if merged.get('geometry',{}).get('type')=='MultiPolygon' and len(merged['geometry']['coordinates'])==1:
                     merged['geometry']={'type':'Polygon','coordinates':merged['geometry']['coordinates'][0]}
                 return merged,warning
     # One unambiguous centre and one radius with an explicit unit.
     radius=re.search(r'\b(?:WI|WITHIN)\s+(\d+(?:\.\d+)?)\s*(NM|N M|KM|METERS?|M)\s+(?:RADIUS\s+)?(?:OF|CENT(?:ER|RE)(?:D)?\s+(?:ON|AT))\s*',text)
     if not radius:radius=re.search(r'\b(?:RADIUS\s+(?:OF\s+)?)(\d+(?:\.\d+)?)\s*(NM|N M|KM|METERS?|M)\b',text)
     if not radius:radius=re.search(r'\b(\d+(?:\.\d+)?)\s*(NM|N M|KM|METERS?|M)\s+RADIUS\s+(?:OF|CENT(?:ER|RE)(?:D)?\s+(?:ON|AT))',text)
-    if radius and len(points)==1 and 0<float(radius[1])<=1000:
+    if not radius:radius=re.search(r'\bRADIUS(?:\s+OF)?\s*[:=]?\s*(\d+(?:\.\d+)?)\s*(NM|N M|KM|METERS?|M)\b',text)
+    if radius and len(points)>1 and re.search(r'\b(?:EACH|FOLLOWING (?:POINTS|POSITIONS|LOCATIONS)|CENTRES|CENTERS)\b',text):
         unit=radius[2].replace(' ','');unit='M' if unit.startswith('METER') else unit
-        return {'circle':{'center':points[0],'radius':float(radius[1]),'unit':unit}},None
+        if 0<float(radius[1])*{'NM':1852,'KM':1000,'M':1}[unit]<=2000000:
+            circles=[{'circle':{'center':point,'radius':float(radius[1]),'unit':unit}} for point in points]
+            return combine_polygons([(c,None) for c in circles])
+    if radius and len(points)==1 and 0<float(radius[1]):
+        unit=radius[2].replace(' ','');unit='M' if unit.startswith('METER') else unit
+        if float(radius[1])*{'NM':1852,'KM':1000,'M':1}[unit]<=2000000:return {'circle':{'center':points[0],'radius':float(radius[1]),'unit':unit}},None
     # Only a stated, straight-line boundary with a contiguous coordinate chain.
     bounded=re.search(r'\b(?:BOUNDED BY|BOUND BY|BOUNDARY DEFINED BY|AREA DEFINED BY|AREA DEFINED AS|WI AREA|WITHIN AREA|JOINING THE POINTS|FLW COORDS?|FOLLOWING COORDINATES|LATERAL LIMIT AREA FORMED BY THE UNION OF THE (?:FLW|FOLLOWING) POINTS)\b',text)
     if bounded and len(points)>=3:
@@ -119,7 +140,7 @@ def extract(value, bounded_chain=False):
                     if j<=i+1 or (i==0 and j==len(edges)-1):continue
                     if cross(a,b,c)*cross(a,b,d)<0 and cross(c,d,a)*cross(c,d,b)<0:raise ValueError('crossing')
             return {'geometry':g},None
-        except ValueError:return None,'本文の座標列から有効な単純ポリゴンを確定できません。'
+        except ValueError:return {'geometry':{'type':'MultiPoint','coordinates':points},'referenceLines':[points]},'原文の座標を記載順に結線（交差を含むため塗りつぶしなし）。'
     return None,'本文に座標はありますが、境界・半径を一意に確定できません。'
 
 
@@ -144,3 +165,34 @@ def reference_points(value):
         except ValueError:continue
     return points
 
+
+
+def refresh_shapes(feed, parser=extract):
+    """Reparse cached official messages without changing source freshness or making HTTP calls."""
+    changed=False;features=list(feed.get('features',[]));pending=[]
+    for props in feed.get('unplotted',[]):
+        pending.append({'type':'Feature','id':props.get('featureId') or props['id'],'geometry':None,'properties':props})
+    remaining=[]
+    for feature in features+pending:
+        p=feature['properties'];shape,warning=parser(p.get('originalText') or p.get('text',''))
+        if not shape:
+            if feature['geometry'] is None:remaining.append(p)
+            continue
+        before=(feature['geometry'],dict(p))
+        if 'circle' in shape:
+            c=shape['circle'];feature['geometry']={'type':'Point','coordinates':c['center']};p['radius_m']=circle_metres(c)['radius_m'];p['accuracy']='text-circle'
+        elif 'geometry' in shape:
+            feature['geometry']=shape['geometry'];p.pop('radius_m',None);p['accuracy']='text-trace' if shape['geometry']['type']=='MultiPoint' else 'text-boundary'
+        else:
+            if feature['geometry'] is None:remaining.append(p)
+            continue
+        for key in ('unplottedReason','geometryNote','textGeometryWarning','referenceLines','additionalCircles'):p.pop(key,None)
+        for key in ('referenceLines','additionalCircles'):
+            if shape.get(key):p[key]=shape[key]
+        if warning:p['textGeometryWarning']=warning
+        if before!=(feature['geometry'],p):changed=True
+        if feature not in features:features.append(feature);changed=True
+    if changed:
+        feed['features']=features;feed['unplotted']=remaining
+        feed['metadata'].update(plotted=len(features),unplotted=len(remaining),retained=len(features)+len(remaining))
+    return changed

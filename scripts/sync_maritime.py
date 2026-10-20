@@ -8,7 +8,7 @@ from urllib.request import Request,build_opener
 from update_airspace import ROOT,NoRedirect,write_json,utcnow,date
 from hazard_rules import classify,altitude
 from maritime_time import times
-from notam_text import reference_points,extract
+from notam_text import reference_points,extract,refresh_shapes
 URL='https://msi.nga.mil/api/publications/smaps'
 # China MSA direct requests are intentionally disabled at the owner's request.
 AREAS=('4','12','A','P','C')
@@ -32,12 +32,13 @@ def build(payload,stamp):
         props=dict(id=ident,country='ZZ',countryBasis='航行警報海域・国への帰属は未判定',layer='NAVWARN',type='Danger',name=str(r['msgType'])+' '+str(r['msgSqncNumber'])+'/'+year[1],source=SOURCE,sourceURL='https://msi.nga.mil/NavWarnings',authority='NGA',navArea=r.get('navArea'),series=r['msgType'],text=text,originalText=text,issued=r.get('createdOn'),validFrom=None,validTo=None,timeStatus='source-active-schedule-unparsed',schedule='公式フィードの有効警報。個別の実施日時・取消は原文を確認',criticalReasons=reasons,altitude=altitude(''),fetchedAt=stamp)
         props.update(times(text,props.get('issued')))
         if props.get('validTo') and date(props['validTo'])<=date(stamp):continue
-        if shape and 'geometry' in shape:geometry=shape['geometry'];props['accuracy']='text-boundary'
+        if shape and 'geometry' in shape:geometry=shape['geometry'];props['accuracy']='text-trace' if shape['geometry']['type']=='MultiPoint' else 'text-boundary'
         elif shape and 'circle' in shape:
             c=shape['circle'];geometry={'type':'Point','coordinates':c['center']};props.update(accuracy='text-circle',radius_m=c['radius']*{'NM':1852,'KM':1000,'M':1}[c['unit']])
         if geometry is None:
             points=reference_points(text)
             if points:geometry={'type':'MultiPoint','coordinates':points};props.update(accuracy='reference-point',geometryNote='本文の参照座標のみ。境界・半径は未確定。')
+        if shape and shape.get('additionalCircles'):props['additionalCircles']=shape['additionalCircles']
         if shape and shape.get('referenceLines'):props['referenceLines']=shape['referenceLines']
         if warning:props['textGeometryWarning']=warning
         if geometry:features.append(dict(type='Feature',id=ident,geometry=geometry,properties=props))
@@ -46,6 +47,7 @@ def build(payload,stamp):
 
 def sync(path):
     path=Path(path);stamp=utcnow();old=json.loads(path.read_text()) if path.exists() else None
+    if old and refresh_shapes(old):write_json(path,old)
     if old and old['metadata'].get('parserVersion')==VERSION and old['metadata'].get('lastAttempt') and (date(stamp)-date(old['metadata']['lastAttempt'])).total_seconds()<1800:return 0
     try:
         rows=[]

@@ -167,3 +167,13 @@ body.map-page{grid-template-rows:auto auto auto minmax(0,1fr)}
 
 /* Plot colors match the on-map legend exactly. */
 .map-page .map-legend{gap:5px 12px;max-width:min(560px,calc(100% - 70px));line-height:1.5}.map-legend .legend-note{flex-basis:100%;display:block;color:#a9bfc9}.map-legend i{flex-shrink:0}.map-legend i.air,.swatch:not(.sea){border-color:#b87983;background:#b8798320}.map-legend i.air-high{border-color:#ff3456;background:#ff345620}.map-legend i.sea,.swatch.sea{border-color:#bf9c70;background:#bf9c7020}.map-legend i.sea-high{border-color:#ff793f;background:#ff793f20}.map-legend i.focused{border-color:#64ded4;background:#64ded420}
+
+/* Uniform air/sea colors; interaction uses warm-white with a dark underlay. */
+.map-legend i.air,.swatch:not(.sea){border-color:#fb5267;background:#fb526714}.map-legend i.sea,.swatch.sea{border-color:#ffad42;background:#ffad4214}
+#overlap-list button:hover,#overlap-list button:focus{border-color:#f5f2e8;color:#f5f2e8;background:#25313a}
+.jump-pin-icon{background:transparent;border:0}.jump-pin{width:24px;height:24px;display:block;background:#f5f2e8;border:3px solid #121f2a;border-radius:50% 50% 50% 0;transform:rotate(-45deg);box-shadow:0 2px 7px #0008}.jump-pin:after{content:'';position:absolute;width:7px;height:7px;background:#18242d;border-radius:50%;left:6px;top:6px}
+#original-text{user-select:text!important;-webkit-user-select:text!important;max-height:none!important;overflow:visible!important}.operator-line{font-size:14px;font-weight:600;color:#e2edea;margin:0 0 12px}.original-count{font-size:11px}.map-page .detail-panel{width:min(480px,calc(100% - 190px))}.map-page .detail-panel.show-original{width:min(920px,calc(100% - 220px))}
+@media(max-width:900px){.map-page .detail-panel,.map-page .detail-panel.show-original,.map-page .overlap-panel{top:auto;bottom:8px;right:8px;left:auto;width:calc(100% - 16px);height:46%;max-height:46%}.map-page .overlap-panel{height:auto;max-height:42%}}
+
+[hidden]{display:none!important}
+@media(max-width:900px){.map-page .detail-panel.show-original{grid-template-columns:minmax(0,1fr)}.map-page .detail-panel.show-original #detail-body{display:none}.map-page .detail-panel.show-original #original-body{grid-column:1;grid-row:2}}

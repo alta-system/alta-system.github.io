@@ -40,6 +40,8 @@ jobs:
           node tests/test_refresh.cjs
           node tests/test_monitor.cjs
           node tests/test_view_tools.cjs
+          node tests/test_monitor_ui.cjs
+          node tests/test_translation.cjs
           node tests/test_operations.cjs
           node tests/test_range_drag.cjs
           node tests/test_spatial.cjs

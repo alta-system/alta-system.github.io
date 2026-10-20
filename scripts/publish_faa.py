@@ -99,11 +99,16 @@ def candidate(feature,refs,now):
     if not text_geometry and not text_warning:text_geometry,text_warning=extract(translated)
     parsed_text=False
     if not record.get('geometry') and text_geometry:
-        record.update(text_geometry);parsed_text=True
+        if text_geometry.get('geometry',{}).get('type')!='MultiPoint':record.update(text_geometry)
+        parsed_text=True
     result,missing=normalize(record,country,SOURCE,PREFIXES,now)
     if result is None and missing is None:return None,'inactive'
     props=result['properties'] if result else missing
-    if parsed_text:props['accuracy']='text-boundary' if 'geometry' in text_geometry else 'text-circle'
+    if parsed_text:
+        if text_geometry.get('geometry',{}).get('type')=='MultiPoint':
+            result={'type':'Feature','id':country+':'+identifier,'geometry':text_geometry['geometry'],'properties':props};props.pop('radius_m',None);props.pop('unplottedReason',None);props['accuracy']='text-trace'
+        else:props['accuracy']='text-boundary' if 'geometry' in text_geometry else 'text-circle'
+        if text_geometry.get('additionalCircles'):props['additionalCircles']=text_geometry['additionalCircles']
     if parsed_text and text_geometry.get('referenceLines'):props['referenceLines']=text_geometry['referenceLines']
     if text_warning:props['textGeometryWarning']=text_warning
     props.update(layer='NOTAM',criticalReasons=critical,altitude=altitude(original+'\n'+translated,record['lower'],record['upper'],qline))

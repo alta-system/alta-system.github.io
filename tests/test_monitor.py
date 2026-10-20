@@ -37,5 +37,8 @@ class MonitorTests(unittest.TestCase):
   r=dict(msgText='MISSILE FIRING AREA BOUND BY 2200N15900W, 2300N15900W, 2300N16000W',createdOn='101200Z OCT 2026',msgSqncNumber=1,msgType='NAVAREA XII',navArea='NAVAREA XII',status='INFORCE')
   x=build({'smaps':[r,dict(r,status='CANCELED',msgSqncNumber=2),dict(r,msgText='BUOY MISSING',msgSqncNumber=3)]},'2026-10-10T00:00:00Z')
   self.assertEqual(len(x['features']),1);self.assertEqual(x['features'][0]['properties']['layer'],'NAVWARN')
- def test_reject_crossing_polygon(self):
-  self.assertIsNone(extract('AREA BOUNDED BY 3500N14000E - 3600N14100E - 3500N14100E - 3600N14000E')[0])
+ def test_crossing_kept_as_unfilled_source_trace(self):
+  shape,warning=extract('AREA BOUNDED BY 3500N14000E - 3600N14100E - 3500N14100E - 3600N14000E')
+  self.assertEqual(shape['geometry']['type'],'MultiPoint')
+  self.assertEqual(shape['referenceLines'][0],[[140,35],[141,36],[141,35],[140,36],[140,35]])
+

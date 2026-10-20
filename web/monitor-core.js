@@ -5,7 +5,7 @@ const south=new Set('AR BO BR CL CO EC FK GF GY PY PE SR UY VE'.split(' '));
 const middleEast=new Set('AE BH CY EG IL IQ IR JO KW LB OM PS QA SA SY TR YE'.split(' '));
 function countryRegion(c){if(middleEast.has(c.code))return 'MiddleEast';return c.region==='Americas'?(south.has(c.code)?'SouthAmerica':'NorthAmerica'):c.region;}
 function points(g){if(!g)return [];if(g.type==='Point')return [g.coordinates];if(g.type==='MultiPoint')return g.coordinates;return g.type==='Polygon'?g.coordinates.flat():g.coordinates.flat(2);}
-function inBox(f,box){const ps=[...points(f.geometry),...(f.properties?.referenceLines||[]).flat()];if(!ps.length)return false;let [s,w,n,e]=box;const radius=(f.properties.radius_m||0)/111000;return [-360,0,360].some(shift=>{const xs=ps.map(p=>p[0]+shift),ys=ps.map(p=>p[1]);const lat=(Math.min(...ys)+Math.max(...ys))/2;const lonRadius=radius/Math.max(.05,Math.cos(lat*Math.PI/180));return Math.max(...xs)+lonRadius>=w&&Math.min(...xs)-lonRadius<=e&&Math.max(...ys)+radius>=s&&Math.min(...ys)-radius<=n;});}
+function inBox(f,box){if((f.properties?.additionalCircles||[]).some(c=>inBox({geometry:{type:'Point',coordinates:c.center},properties:{radius_m:c.radius_m}},box)))return true;const ps=[...points(f.geometry),...(f.properties?.referenceLines||[]).flat()];if(!ps.length)return false;let [s,w,n,e]=box;const radius=(f.properties.radius_m||0)/111000;return [-360,0,360].some(shift=>{const xs=ps.map(p=>p[0]+shift),ys=ps.map(p=>p[1]);const lat=(Math.min(...ys)+Math.max(...ys))/2;const lonRadius=radius/Math.max(.05,Math.cos(lat*Math.PI/180));return Math.max(...xs)+lonRadius>=w&&Math.min(...xs)-lonRadius<=e&&Math.max(...ys)+radius>=s&&Math.min(...ys)-radius<=n;});}
 function coordinate(lat,lon){if(String(lat).trim()===''||String(lon).trim()==='')throw Error('緯度と経度を入力してください');const a=Number(lat),b=Number(lon);if(!Number.isFinite(a)||!Number.isFinite(b)||Math.abs(a)>90||Math.abs(b)>180)throw Error('緯度 −90〜90、経度 −180〜180で入力してください');return [a,b];}
 function coordinateText(value){
  const text=String(value).trim().toUpperCase();
@@ -29,7 +29,7 @@ function additions(previous,all,visible,box){if(previous===null)return [];return
 
 function signature(f){
  const p=f.properties||{};
- const value=JSON.stringify([f.geometry,p.name,p.text,p.originalText,p.validFrom,p.validTo,p.schedule,p.altitude,p.radius_m,p.referenceLines,p.type,p.lastUpdated]);
+ const value=JSON.stringify([f.geometry,p.name,p.text,p.originalText,p.validFrom,p.validTo,p.schedule,p.altitude,p.radius_m,p.referenceLines,p.additionalCircles,p.type,p.lastUpdated]);
  let h=2166136261;for(let i=0;i<value.length;i++){h^=value.charCodeAt(i);h=Math.imul(h,16777619);}
  return (h>>>0).toString(16);
 }
@@ -41,7 +41,7 @@ function notificationScan(previous,all,visible,box,now){
   if(!inBox(f,box))continue;
   const p=f.properties||{},sig=known[f.id],issued=Date.parse(p.issuedISO||p.issued||''),start=Date.parse(p.validFrom||'');
   let reason=null;
-  if(state.lastScan==null){if(Number.isFinite(issued)&&issued<=now&&now-issued<=10800000)reason='発表から3時間以内';}
+  if(state.lastScan==null){if(Number.isFinite(issued)&&issued<=now&&now-issued<=3600000)reason='発表から1時間以内';}
   else if(!Object.prototype.hasOwnProperty.call(state.known,f.id))reason='新規取得';
   else if(state.known[f.id]!==sig)reason='内容更新';
   else if(Number.isFinite(start)&&start>state.lastScan&&start<=now)reason='有効期間に入りました';

@@ -8,7 +8,7 @@ from urllib.parse import urljoin,urlsplit,urlunsplit,quote
 from urllib.request import Request,build_opener
 from update_airspace import ROOT,NoRedirect,write_json,utcnow,date
 from hazard_rules import classify
-from notam_text import extract,reference_points
+from notam_text import refresh_shapes,extract,reference_points
 from maritime_time import times
 
 URL='https://hydrography.paknavy.gov.pk/navarea-ix-warnings/'
@@ -100,13 +100,14 @@ def build(rows,texts,stamp):
         props.update(times(body,row['issued']))
         if props.get('validTo') and date(props['validTo'])<=date(stamp):continue
         shape,warning=geometry(body);g=None
-        if shape and 'geometry' in shape:g=shape['geometry'];props['accuracy']='text-boundary'
+        if shape and 'geometry' in shape:g=shape['geometry'];props['accuracy']='text-trace' if shape['geometry']['type']=='MultiPoint' else 'text-boundary'
         elif shape and 'circle' in shape:
             c=shape['circle'];g=dict(type='Point',coordinates=c['center'])
             props.update(accuracy='text-circle',radius_m=c['radius']*{'NM':1852,'KM':1000,'M':1}[c['unit']])
         else:
             points=reference_points(body)
             if points:g=dict(type='MultiPoint',coordinates=points);props.update(accuracy='reference-point',geometryNote='参照座標のみ。危険区域の境界ではありません。')
+        if shape and shape.get('additionalCircles'):props['additionalCircles']=shape['additionalCircles']
         if shape and shape.get('referenceLines'):props['referenceLines']=shape['referenceLines']
         if warning:props['textGeometryWarning']=warning
         if g:features.append(dict(type='Feature',id=ident,geometry=g,properties=props))
@@ -118,18 +119,7 @@ def build(rows,texts,stamp):
 
 def sync(path):
     path=Path(path);stamp=utcnow();old=json.loads(path.read_text()) if path.exists() else None
-    if old:
-        changed=False
-        for feature in old.get('features',[]):
-            props=feature['properties']
-            if props.get('accuracy')!='reference-point':continue
-            shape,warning=geometry(props.get('originalText',''))
-            if shape and 'geometry' in shape:
-                feature['geometry']=shape['geometry'];props['accuracy']='text-boundary'
-                props.pop('geometryNote',None);props.pop('textGeometryWarning',None);changed=True
-                if shape.get('referenceLines'):props['referenceLines']=shape['referenceLines']
-                if warning:props['textGeometryWarning']=warning
-        if changed:write_json(path,old)
+    if old and refresh_shapes(old,geometry):write_json(path,old)
     if old and old['metadata'].get('parserVersion')=='navarea9-v2' and old['metadata'].get('lastAttempt') and (date(stamp)-date(old['metadata']['lastAttempt'])).total_seconds()<3600:
         return int(old['metadata'].get('status')!='ok')
     try:

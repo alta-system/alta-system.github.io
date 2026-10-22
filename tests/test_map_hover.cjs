@@ -4,7 +4,7 @@ const line=source.split('\n').find(s=>s.startsWith('function draw(f,anchor)'));
 const rendered=[],hover={hidden:true,children:[],style:{},replaceChildren(...x){this.children=x},append(x){this.children.push(x)},offsetWidth:160,offsetHeight:60};
 const elements={'#hover-detail':hover,'#alt-labels':{checked:true},'#map':{getBoundingClientRect:()=>({left:0,top:0,width:500,height:300})}};
 const layer=()=>({handlers:{},bindTooltip(){throw Error('Per-layer tooltip must not be created')},on(name,fn){this.handlers[name]=fn;return this}});
-const context={$:s=>elements[s],node:(tag,text)=>({tag,text}),shiftedGeometry:g=>g,selectedAlerts:new Set(),baseColor:()=> '#ef4444',
+const context={displayAltitude:p=>require('../web/view-tools.js').altitudeText(p,'ft'),$:s=>elements[s],node:(tag,text)=>({tag,text}),shiftedGeometry:g=>g,selectedAlerts:new Set(),baseColor:()=> '#ef4444',
  L:{circle:layer,circleMarker:layer,geoJSON:layer},group:{addLayer:l=>rendered.push(l)},layers:new Map(),showDetail(){},pdfMode:false,toggleAlert(){},alertStyle:()=>({}),previewFeature(){},clearPreview(){}};
 vm.createContext(context);
 const start=source.indexOf('function hideHover()'),end=source.indexOf("$('#map').addEventListener",start);

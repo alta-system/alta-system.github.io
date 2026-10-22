@@ -39,6 +39,8 @@ jobs:
         run: |
           node tests/test_refresh.cjs
           node tests/test_monitor.cjs
+          node tests/test_export_filters.cjs
+          node tests/test_shapefile.cjs
           node tests/test_view_tools.cjs
           node tests/test_monitor_ui.cjs
           node tests/test_translation.cjs

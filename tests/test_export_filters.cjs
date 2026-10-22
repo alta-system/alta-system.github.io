@@ -51,3 +51,8 @@ assert.equal(ctx.matches({layer:'NOTAM',type:'Danger',text:'MILITARY EXERCISE',u
 assert.equal(ctx.matches({layer:'NOTAM',type:'Danger',text:'MILITARY EXERCISE',upper:'UNL',validFrom:'2026-04-01T00:00:00Z'}),true);
 assert.equal(ctx.matches({layer:'NOTAM',type:'Danger',text:'MILITARY EXERCISE',upper:'UNL',validFrom:'2024-04-01T00:00:00Z'}),false);
 console.log('Independent sea/air dates, three-month/year defaults, all altitude units and real render predicate passed');
+
+// A single height selection accepts equivalent values from different source units.
+vm.runInContext('altitudeBands.clear(); altitudeBands.add("low");',ctx);
+for(const upper of ['10000 FT AMSL','3048 M AMSL','3.048 KM AMSL','FL100'])assert.equal(ctx.matches({layer:'NOTAM',type:'Danger',text:'MILITARY EXERCISE',upper,validFrom:'2026-10-01T00:00:00Z'}),true,upper);
+for(const upper of ['10001 FT AMSL','3049 M AMSL','3.049 KM AMSL','FL101'])assert.equal(ctx.matches({layer:'NOTAM',type:'Danger',text:'MILITARY EXERCISE',upper,validFrom:'2026-10-01T00:00:00Z'}),false,upper);

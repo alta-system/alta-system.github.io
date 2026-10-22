@@ -15,6 +15,7 @@ function readState(storage){try{const s=JSON.parse(storage.getItem('alta-view-v1
 function original(p){if(p.originalText)return {text:p.originalText,label:p.layer==='NAVWARN'?'公式配信本文（HTML / PDFのテキスト抽出を含む）':'FAA配信の原文本文'};return {text:p.text||'',label:'原文フィールドなし：取得済み本文を表示'};}
 // Calendar months, clamped at month end; use the displayed (live/archive) UTC time.
 function monthCutoff(now){const d=new Date(now),day=d.getUTCDate();d.setUTCDate(1);d.setUTCMonth(d.getUTCMonth()-3);const last=new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth()+1,0)).getUTCDate();d.setUTCDate(Math.min(day,last));return d.getTime();}
+function startKnown(p){return Number.isFinite(Date.parse(p.validFrom||''));}
 function oldStart(p,now){const start=Date.parse(p.validFrom||'');return Number.isFinite(start)&&start<=monthCutoff(now);}
 function upperBand(p){
  if(p.layer==='NAVWARN')return 'marine';
@@ -30,5 +31,5 @@ function upperBand(p){
  const feet=value*(unit==='FL'?100:unit==='M'?1/0.3048:1);
  return feet<=10000?'low':feet<=30000?'mid':'high';
 }
-const api={labels,category,emphasized,readState,original,monthCutoff,oldStart,upperBand};root.AltaView=api;if(typeof module!=='undefined')module.exports=api;
+const api={labels,category,emphasized,readState,original,monthCutoff,oldStart,startKnown,upperBand};root.AltaView=api;if(typeof module!=='undefined')module.exports=api;
 })(typeof window==='undefined'?globalThis:window);

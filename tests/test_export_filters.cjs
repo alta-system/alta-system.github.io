@@ -17,3 +17,6 @@ assert.equal(V.upperBand({altitude:{upper:{value:12000,unit:'M',reference:'AMSL'
 console.log('Calendar age boundaries, archive clock, explicit UNL, units and unknown/sea filters passed');
 assert.equal(V.upperBand({altitude:{upper:{label:'1379FT AMSL RMK: NOTICE'}}}),'low');
 assert.equal(V.upperBand({altitude:{upper:{label:'27.63, 128.86 H) 27.63, 126.86 MAX ALT: 82021 FT'}},text:'AREA G) 27.63, 128.86 H) 27.63, 126.86 MAX ALT: 82021 FT (25000M)'}),'high');
+
+for(const validFrom of [null,undefined,'','invalid','PERM'])assert.equal(V.startKnown({validFrom}),false);
+for(const validFrom of ['2026-10-22T03:00:00Z','2026-12-22T03:00:00Z'])assert.equal(V.startKnown({validFrom}),true);

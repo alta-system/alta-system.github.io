@@ -193,3 +193,19 @@ body.map-page{grid-template-rows:auto auto auto minmax(0,1fr)}
 .is-processing{cursor:progress}
 @keyframes alta-spin{to{transform:rotate(360deg)}}
 @media(prefers-reduced-motion:reduce){.busy-spinner{animation:none;border-top-color:#e1f0ed}}
+
+/* Compact filter cards with separate accents for content, dates and height. */
+.filter-toolbar{position:sticky;top:0;z-index:2;display:flex;align-items:center;justify-content:space-between;gap:8px;background:#0d202b;padding:9px 0 8px;margin-bottom:3px}
+.filter-toolbar strong{font-size:12px;color:#bdd5d5}.filter-toolbar button{border:1px solid #42656b;border-radius:6px;background:#17343d;color:#d0ebe4;font-size:11px;padding:8px 10px;cursor:pointer}
+.filter-toolbar button:hover,.filter-toolbar button:focus-visible{border-color:#9fdacb;background:#21434a}
+.filter-reset-status{font-size:11px;color:#a2d5c8;line-height:1.5;margin:2px 0 9px}.filter-reset-status:empty{display:none}
+.sidebar-options .category-controls{--filter-accent:#8bcfbd;margin:6px 0 9px;border:1px solid #304d59;border-left:3px solid var(--filter-accent);border-radius:7px;background:#102631;overflow:hidden}
+.sidebar-options .content-controls{--filter-accent:#ca9297}.sidebar-options .period-controls{--filter-accent:#b0a6c9}.sidebar-options .altitude-controls{--filter-accent:#8bcfbd}
+.sidebar-options .category-controls>summary{border:0;background:#152e39;border-radius:0;padding:10px 9px!important;color:#deece9!important;font-size:12px;font-weight:650}
+.filter-section-mark{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--filter-accent);margin-right:7px;vertical-align:1px}
+.sidebar-options .category-controls>.toggle,.sidebar-options .category-controls>.micro,.sidebar-options .category-controls>.filter-title,.sidebar-options .category-controls>.filter-shortcuts{margin-left:10px;margin-right:10px}
+.sidebar-options .category-controls>.toggle{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:7px 0;margin-top:0;margin-bottom:0;border-bottom:1px solid #243f4b}
+.sidebar-options .category-controls>.toggle input{flex-shrink:0;width:16px;height:16px;accent-color:#8bcfbd;cursor:pointer}
+.sidebar-options .category-controls>.toggle:last-of-type{border-bottom:0}
+.altitude-choice strong{display:block;font-size:12px;font-weight:600;color:#dfebe8}.altitude-choice small{display:block;margin-top:3px;font-size:10px;line-height:1.5;color:#9fb7bf}
+.sidebar-options .category-controls .filter-title{font-size:10px;color:#bccbd3;font-weight:600;margin-top:12px;margin-bottom:5px}

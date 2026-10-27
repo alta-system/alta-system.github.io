@@ -10,7 +10,7 @@ from hazard_rules import classify,altitude
 from maritime_time import times
 from notam_text import reference_points,extract,refresh_shapes
 URL='https://msi.nga.mil/api/publications/smaps'
-# China MSA direct requests are intentionally disabled at the owner's request.
+# China MSA has a separate hourly, bounded public-page collector.
 AREAS=('4','12','A','P','C')
 VERSION='smaps-v1'
 SOURCE='NGA Maritime Safety Information — Navigational Warnings'
@@ -72,19 +72,21 @@ def combine(paths,output):
     unplotted=[p for feed in feeds for p in feed['unplotted']]
     ok=all(m.get('status')=='ok' for m in metadata)
     stamps=[m.get('lastSuccess') for m in metadata if m.get('lastSuccess')]
-    meta=dict(status='ok' if ok else 'error',source='Official maritime warnings: NGA + Japan Coast Guard + Pakistan NHO',sources=metadata,lastAttempt=utcnow(),lastSuccess=min(stamps) if len(stamps)==len(feeds) else None,received=sum(m.get('received',0) for m in metadata),retained=len(features)+len(unplotted),plotted=len(features),unplotted=len(unplotted),coverage='NGA、JCG、Pakistan NAVAREA IXの取得成功分。各ソースの状態を参照。全世界網羅ではありません。')
+    meta=dict(status='ok' if ok else 'error',source='Official maritime warnings: NGA + Japan Coast Guard + Pakistan NHO + China MSA',sources=metadata,lastAttempt=utcnow(),lastSuccess=min(stamps) if len(stamps)==len(feeds) else None,received=sum(m.get('received',0) for m in metadata),retained=len(features)+len(unplotted),plotted=len(features),unplotted=len(unplotted),coverage='NGA、JCG、Pakistan NAVAREA IX、China MSAの取得成功分。各ソースの状態を参照。全世界網羅ではありません。')
     if not ok:meta['error']='海域の一部ソースで取得失敗。各ソースの最終成功分を表示。'
     write_json(Path(output),dict(type='FeatureCollection',features=features,unplotted=unplotted,metadata=meta))
 
 if __name__=='__main__':
     from sync_jcg import sync as sync_jcg
     from sync_navarea9 import sync as sync_navarea9
+    from sync_china_msa import sync as sync_china_msa
     folder=ROOT/'web/maritime'
     result=sync(folder/'nga.json')
     result+=sync_jcg('NAVAREA11',folder/'jcg_navarea11.json')
     result+=sync_jcg('JAPANNW',folder/'jcg_japannw.json')
     result+=sync_jcg('NAVTEX',folder/'jcg_navtex.json')
     result+=sync_navarea9(folder/'pk_navarea9.json')
-    combine([folder/'nga.json',folder/'jcg_navarea11.json',folder/'jcg_japannw.json',folder/'jcg_navtex.json',folder/'pk_navarea9.json'],folder/'index.json')
+    result+=sync_china_msa(folder/'china_msa.json')
+    combine([folder/'nga.json',folder/'jcg_navarea11.json',folder/'jcg_japannw.json',folder/'jcg_navtex.json',folder/'pk_navarea9.json',folder/'china_msa.json'],folder/'index.json')
     Path('/tmp/maritime-errors').write_text(str(result))
 

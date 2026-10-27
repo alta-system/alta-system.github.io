@@ -2,9 +2,9 @@
 (function(root){
 const labels={missile:'ミサイル・ロケット',firing:'射撃・武器',exercise:'軍事演習',security:'安全保障',drone:'無人機',other:'その他の空域・活動',birds:'鳥・野生動物',airport:'滑走路・施設',weather:'気象・滑走路の気象'};
 function category(p){const t=String(p.originalText||p.text||'').toUpperCase(),q=String(p.qcode||'');
- if(/\b(MISSILES?|ROCKETS?|SPACE (LAUNCH|DEBRIS)|RE[ -]?ENTRY)\b|ミサイル|ロケット|导弹/.test(t))return 'missile';
- if(/\b(LIVE[ -]?FIRING|FIRING|GUNNERY|GUNFIRE|BOMBING|WEAPONS? (EXERCISE|TRAINING))\b|射撃|射爆撃|实弹/.test(t)||/^Q?WM/.test(q))return 'firing';
- if(/\b(?:MILITARY|NAVAL|MIL|ARMED FORCES)\s+(?:EXERCISE|EXER|TRAINING|OPERATIONS?)\b|軍事演習|军事训练|军事演习/.test(t))return 'exercise';
+ if(/\b(MISSILES?|ROCKETS?|SPACE (LAUNCH|DEBRIS)|RE[ -]?ENTRY)\b|ミサイル|ロケット|导弹|火箭/.test(t))return 'missile';
+ if(/\b(LIVE[ -]?FIRING|FIRING|GUNNERY|GUNFIRE|BOMBING|WEAPONS? (EXERCISE|TRAINING))\b|射撃|射爆撃|实弹|射击/.test(t)||/^Q?WM/.test(q))return 'firing';
+ if(/\b(?:MILITARY|NAVAL|MIL|ARMED FORCES)\s+(?:EXERCISE|EXER|TRAINING|OPERATIONS?)\b|軍事演習|军事训练|军事演习|军事任务|军演/.test(t))return 'exercise';
  if(/\b(TERRORISM|TERRORIST|HOSTILITIES|ARMED CONFLICT|NATIONAL SECURITY|FLIGHT PROHIBITION|GPS JAMMING|GNSS INTERFERENCE)\b|テロ|武力紛争/.test(t))return 'security';
  if(/\b(?:WEATHER|WX|METEOROLOGICAL|VISIBILITY|CEILING|TURBULENCE|QNH|WIND|THUNDERSTORMS?|METAR|TAF|WINDSHEAR|LLWS|RVR|SNOW|ICE|ICY|FOG|VOLCANIC ASH|STRONG WINDS?)\b|気象|雷雨|視程|降雪|着氷/.test(t))return 'weather';
  if(/\b(BIRD(?:S|TAM)?|WILDLIFE|BIRDSTRIKE)\b|鳥群|鳥の群れ/.test(t))return 'birds';

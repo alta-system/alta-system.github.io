@@ -59,4 +59,25 @@ class ChinaMSATests(unittest.TestCase):
   with tempfile.TemporaryDirectory() as folder,patch('sync_china_msa.CHANNELS',{'辽宁':'abc','海南':'def'}):
    out=Path(folder)/'out.json';sync(out,Path(folder)/'state.json',blocked,'2026-10-23T10:00:00Z')
    self.assertEqual(len(calls),1);self.assertEqual(json.loads(out.read_text())['metadata']['status'],'error')
+ def test_unchecked_region_precedes_recent_failure(self):
+  calls=[]
+  def fetch(url):calls.append(url);return '航行警告<script>pageParam.count=0;</script>'
+  with tempfile.TemporaryDirectory() as folder,patch('sync_china_msa.CHANNELS',{'最近失敗':'failed','未確認':'unchecked'}):
+   cache=Path(folder)/'state.json';out=Path(folder)/'out.json'
+   cache.write_text(json.dumps({'records':{},'regions':{'最近失敗':{'status':'error','lastAttempt':'2026-10-23T09:00:00Z'}}}))
+   sync(out,cache,fetch,'2026-10-23T10:01:00Z')
+   self.assertIn('/unchecked/',calls[0])
+ def test_fullwidth_separators_and_dms(self):
+  body='10月21日至30日每日0600时至2200时在34-13.10N120-18.00E，34-12.25N120-35.28E，34-01.30N120-41.28E，33-55.00N120-37.08E，33-55.00N120-26.20E诸点连线范围内进行实弹射击。'
+  shape,note=geometry(body);self.assertIsNone(note);self.assertEqual(len(shape['geometry']['coordinates'][0][0]),6)
+  dms='2026年10月14日至10月31日，在18-07-20N 109-37-50E；18-07-20N 109-41-20E；18-04-50N 109-41-20E；18-04-50N 109-37-50E，四点连线水域范围内进行军事训练。'
+  shape,note=geometry(dms);self.assertIsNone(note);self.assertEqual(len(shape['geometry']['coordinates'][0][0]),5)
+  times=time_fields(dms,self.row()['issued']);self.assertEqual(times['validTo'],'2026-10-31T16:00:00Z');self.assertEqual(times['timeStatus'],'date-only-period-unparsed')
+ def test_cached_reparse_does_not_fetch_or_change_freshness(self):
+  with tempfile.TemporaryDirectory() as folder:
+   cache=Path(folder)/'state.json';out=Path(folder)/'out.json';stamp='2026-10-23T10:00:00Z'
+   cache.write_text(json.dumps({'records':{URL:self.row()},'regions':{},'lastAttempt':stamp}))
+   out.write_text(json.dumps({'features':[],'unplotted':[],'metadata':{'status':'ok','lastAttempt':stamp,'lastSuccess':stamp,'parserVersion':'old'}}))
+   sync(out,cache,lambda u:self.fail('must not fetch'),'2026-10-23T10:30:00Z')
+   data=json.loads(out.read_text());self.assertEqual(len(data['features']),1);self.assertEqual(data['metadata']['lastSuccess'],stamp);self.assertEqual(data['features'][0]['properties']['fetchedAt'],self.row()['fetchedAt'])
 if __name__=='__main__':unittest.main()

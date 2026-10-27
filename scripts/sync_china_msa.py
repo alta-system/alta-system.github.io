@@ -13,7 +13,7 @@ from notam_text import extract,combine_polygons
 from hazard_rules import classify
 BASE='https://www.msa.gov.cn/'
 SOURCE='China MSA — 全国航行警告'
-VERSION='china-msa-v1'
+VERSION='china-msa-v2'
 CHANNELS=dict(zip('上海 天津 辽宁 河北 山东 浙江 福建 广东 广西 海南 长江 江苏 深圳 连云港 江苏省地方 江西省地方'.split(),[
 '94df14ce1110415da44e67593e76619f','bdba5fad6e5d48679f970fcf8efb8636','c8896863b1014c438705536a03eb46ff','93b73989d22045f9bc3270a6eba35180','36ea3354c8f84953aba082d6d989c750','8e10ea74eb9e4c9690f8f891968add80','7b08405760384570a0fb44e9204c4b1d','1e478d409e854918bf12478b8a19f4a8','86de2fffff2c47f98359fd1f20d6508f','d3340711057b494b8fa09eedc4c5ead9','9340423406cc4507b2fb8af2492d2a3d','b5b0f3c7630d4967b1e6b06208575d15','325fdc0892b44313a63ee5c165be98ec','fa4501f3dbe44f70bc726f27132d4e04','d14ed012960b4064971270459a4a0d4d','html/cnmsa/hxaq/aqxx/hxjg/jxsdfhsju']))
 RISK=re.compile(r'军事|军演|实弹|射击|导弹|火箭|武器|布雷|扫雷|爆破|残骸|反恐')
@@ -78,6 +78,7 @@ def geometry(body):
     if re.search(r'圆弧|沿岸|岸线|扇形|除外',body):return None,'円弧・岸線・除外区域は境界未確定'
     # Normalize degree-minute pairs without needing whitespace between N and longitude.
     body=re.sub(r'(\d{2})-(\d{2}(?:\.\d+)?)N\s*[/,]?\s*(\d{3})-(\d{2}(?:\.\d+)?)E',lambda m:m[1]+m[2]+'N '+m[3]+m[4]+'E ',body)
+    body=body.translate(str.maketrans({'，':',','；':';'}))
     results=[];rest=body
     for m in re.finditer(r'(.*?)(?:诸点连线|各点连线|[三四五六七八九十]+点连线|依次连线|以上各点连线|上述各点连线)',body,re.S):
         if re.search(r'\d[EW]',m[1]):results.append(extract('AREA BOUNDED BY '+m[1].replace('、',' TO ').replace('和',' TO ').replace('及',' TO '),bounded_chain=True))
@@ -107,9 +108,12 @@ def time_fields(body,issued):
         a=iso(daily[1],daily[2],daily[5]);b=iso(daily[3] or daily[1],daily[4],daily[6]);status='daily-schedule-unparsed'
     elif m:
         a=iso(m[1],m[2],m[3]);b=iso(m[4] or m[1],m[5] or m[2],m[6]);status='explicit-period'
-    else:return {}
+    else:
+        calendar=re.search(r'(\d{1,2})月(\d{1,2})日\s*至\s*(?:(\d{1,2})月)?(\d{1,2})日',body)
+        if not calendar:return {}
+        a=iso(calendar[1],calendar[2],'0000');b=iso(calendar[3] or calendar[1],calendar[4],'2400');status='date-only-period-unparsed'
     if date(b)<=date(a):return {}
-    return dict(validFrom=a,validTo=b,timeStatus=status,schedule='毎日の実施時間は原文参照（北京時間 UTC+8）' if daily else 'H24',timeWarning='原文の北京時間をUTCへ変換')
+    return dict(validFrom=a,validTo=b,timeStatus=status,schedule='時刻未記載。北京時間の日付範囲' if status=='date-only-period-unparsed' else ('毎日の実施時間は原文参照（北京時間 UTC+8）' if daily else 'H24'),timeWarning='時刻未記載のため、開始日00時から終了日の翌日00時までの日付範囲として表示' if status=='date-only-period-unparsed' else '原文の北京時間をUTCへ変換')
 
 def build(records,stamp):
     revoked=set()
@@ -151,9 +155,13 @@ def sync(path,cache_path=None,fetch=None,stamp=None):
     path=Path(path);cache_path=Path(cache_path or ROOT/'state/china_msa.json');stamp=stamp or utcnow()
     cache=json.loads(cache_path.read_text()) if cache_path.exists() else {'records':{},'regions':{}}
     old=json.loads(path.read_text()) if path.exists() else None
-    if cache.get('lastAttempt') and (date(stamp)-date(cache['lastAttempt'])).total_seconds()<3600:return int(not old or old['metadata']['status']!='ok')
+    if old and cache.get('lastAttempt') and (date(stamp)-date(cache['lastAttempt'])).total_seconds()<3600:
+        refreshed=build(list(cache['records'].values()),stamp)
+        refreshed['metadata']={**old['metadata'],**refreshed['metadata']}
+        write_json(path,refreshed)
+        return int(refreshed['metadata']['status']!='ok')
     fetch=fetch or Fetcher();cache['lastAttempt']=stamp;errors=[];blocked=False;blocked_code='run_stopped_after_access_error';received=0
-    for region,channel in sorted(CHANNELS.items(),key=lambda item:cache['regions'].get(item[0],{}).get('lastSuccess','')):
+    for region,channel in sorted(CHANNELS.items(),key=lambda item:cache['regions'].get(item[0],{}).get('lastAttempt',cache['regions'].get(item[0],{}).get('lastSuccess',''))):
         prev=cache['regions'].get(region,{})
         if blocked:
             errors.append(region);cache['regions'][region]=dict(prev,status='error',errorCode=blocked_code);continue
@@ -171,7 +179,7 @@ def sync(path,cache_path=None,fetch=None,stamp=None):
                 prior=cache['records'].get(row['url'])
                 if prior and (date(stamp)-date(prior['fetchedAt'])).total_seconds()<86400:continue
                 cache['records'][row['url']]=article(fetch(row['url']),row['url'],region,stamp)
-            cache['regions'][region]=dict(status='ok',lastSuccess=stamp,received=len(rows));print('MSA_REGION='+region+' OK rows='+str(len(rows)),flush=True)
+            cache['regions'][region]=dict(status='ok',lastAttempt=stamp,lastSuccess=stamp,received=len(rows));print('MSA_REGION='+region+' OK rows='+str(len(rows)),flush=True)
         except Exception as exc:
             code='http_'+str(exc.code) if hasattr(exc,'code') else str(exc)[:80]
             errors.append(region);cache['regions'][region]=dict(prev,status='error',errorCode=code,lastAttempt=stamp);print('MSA_REGION='+region+' '+code,flush=True)

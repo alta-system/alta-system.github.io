@@ -157,7 +157,7 @@ if(index.coverageGap)note.push('同期の空白期間あり・再取得待ち');
 if(stale)note.push(index.lastSuccess?'取得失敗または古いデータ：前回の成功分を表示':'本番データは未取得です');
 if(region==='custom'&&!selectedCountries.size)note.push('対象国をチェックしてください');if(!map)note.push('地図ライブラリの読込失敗');
 $('#notice').textContent=archiveAt?'保存時点 '+time(archiveAt)+' の観測記録（現在の警報ではありません）':note.join(' / ');$('#notice').classList.toggle('warning',Boolean(stale));
-$('#mode').textContent=index.lastSuccess?'実データ':'データ取得待ち';
+
 $('#updated').textContent=demoMode?'架空データ・API未使用':'FAA取得成功：'+time(index.lastSuccess);
 const st=index.stats;$('#feed-summary').textContent=demoMode?'架空データの操作デモ':st?`FAAから今回受信 ${st.received}件。保存中の対象警報 ${st.retained}件（本文から形状を読み取れたもの ${st.textShapes||0}件）。${index.countries.filter(c=>c.count+c.unplotted>0).length}の国・地域に分類しています。`:'本番データはまだ取得できていません。取得状態をご確認ください。';
 const scopeFeatures=[...feeds.values()].flatMap(d=>d.features||[]).filter(f=>viewMatch(f)&&!expired(f.properties));

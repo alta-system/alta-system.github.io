@@ -210,3 +210,11 @@ body.map-page{grid-template-rows:auto auto auto minmax(0,1fr)}
 .sidebar-options .filter-shortcuts button{background:#192d39;border-color:#4b606d;color:#dce5e9;font-size:12px;padding:7px 10px}
 .sidebar-options #source-settings>summary,.sidebar-options .pdf-disclosure>summary{font-size:14px;color:#dce5e9}
 .sidebar-options #source-settings .toggle,.sidebar-options .pdf-tools{font-size:14px}.sidebar-options .pdf-tools button{font-size:13px}
+/* Current UTC, independent of data freshness and archive observation time. */
+.utc-clock{display:inline-flex;align-items:center;gap:8px;flex-shrink:0;white-space:nowrap;padding:5px 9px;border:1px solid #31525c;border-radius:5px;background:#0b1c27;color:#e4f5f4;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-variant-numeric:tabular-nums;line-height:1.05}
+.utc-clock__label{font-size:10px;letter-spacing:1px;color:#8ecbc4}
+.utc-clock__value{display:flex;flex-direction:column;align-items:flex-end;gap:3px}
+.utc-clock [data-utc-time]{font-size:18px;font-weight:600;letter-spacing:.5px}
+.utc-clock__date{font-size:10px;letter-spacing:.4px;color:#9bb6bf}
+@media(max-width:650px){.utc-clock{padding:4px 6px;gap:5px}.utc-clock [data-utc-time]{font-size:14px}.utc-clock__label{font-size:9px}.utc-clock__date{font-size:9px;letter-spacing:0}}
+@media(max-width:380px){.map-page .brand-mark{display:none}}

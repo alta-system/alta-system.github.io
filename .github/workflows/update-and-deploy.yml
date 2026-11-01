@@ -137,11 +137,5 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: pages deploy cloudflare-dist --project-name=alta-system --branch=main
-      - name: Report partial source failures after publishing stale status
-        shell: bash
-        run: |
-          count=$(cat /tmp/airspace-errors)
-          if [ "$count" -gt 0 ] || [ "$(cat /tmp/maritime-errors)" -gt 0 ]; then
-            echo "::error::$count country source(s) failed; previous valid data and failure status were published."
-            exit 1
-          fi
+      - name: Report source health after publication
+        run: python scripts/report_source_health.py
